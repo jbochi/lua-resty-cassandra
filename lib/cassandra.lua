@@ -93,6 +93,10 @@ local function close(self)
 end
 _M.close = close
 
+---
+--- ENCODE FUNCTIONS
+---
+
 local function big_endian_representation(num, bytes)
     local t = {}
     while num > 0 do
@@ -127,6 +131,19 @@ local function string_map_representation(map)
     return short_representation(n) .. table.concat(buffer)
 end
 
+---
+--- DECODE FUNCTIONS
+---
+local function string_to_number(str)
+    local number = 0
+    local exponent = 1
+    for i = #str, 1, -1 do
+        number = string.byte(str, i) * exponent
+        exponent = exponent * 16
+    end
+    return number
+end
+
 local function debug_hex_string(str)
     buffer = {}
     for i = 1, #str do
@@ -140,8 +157,22 @@ local function read_frame(self)
     if not header then
         error("Failed to read frame:" .. err)
     end
-    ngx.log(ngx.ERR, "received frame: '" .. debug_hex_string(header) .. "'")
-    return header
+    local length = string_to_number(string.sub(header, 5, 8))
+    local body, err, partial = self.sock:receive(length)
+    if not body then
+        error("Failed to read body:" .. err)
+    end
+    ngx.log(ngx.ERR, "received frame: '" .. debug_hex_string(header) .. "', length: " .. length .. ", body: '" .. body .. "")
+    local version = string.sub(header, 1, 1)
+    if version ~= version_codes.RESPONSE then
+        error("Invalid response version")
+    end
+    return {
+        flags=string.sub(header, 2, 2),
+        stream=string.sub(header, 3, 3),
+        op_code=string.sub(header, 4, 4),
+        body=body
+    }
 end
 
 function _M.startup(self)
@@ -159,7 +190,10 @@ function _M.startup(self)
         error("Failed to send data to cassandra: " .. err)
     end
 
-    read_frame(self)
+    local response = read_frame(self)
+    if response.op_code ~= op_codes.READY then
+        error("Server is not ready")
+    end
     return true
 end
 
