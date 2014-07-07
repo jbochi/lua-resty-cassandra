@@ -47,6 +47,14 @@ local consistency = {
     LOCAL_ONE='\000\010'
 }
 
+local result_kinds = {
+    VOID=1,
+    ROWS=2,
+    SET_KEYSPACE=3,
+    PREPARED=4,
+    SCHEMA_CHANGE=5
+}
+
 local mt = { __index = _M }
 
 ---
@@ -265,9 +273,14 @@ end
 function _M.execute(self, query)
     local query_repr = long_string_representation(query)
     local flags = '\000'
-    local query_params = consistency.ANY .. flags
+    local query_params = consistency.ONE .. flags
     local body = query_repr .. query_params
-    local response = send_reply_and_get_response(self, op_codes.STARTUP, body)
+    local response = send_reply_and_get_response(self, op_codes.QUERY, body)
+    if response.op_code ~= op_codes.RESULT then
+        error("Result expected")
+    end
+    assert(read_int(response.buffer) == result_kinds.ROWS)
+    ngx.log(ngx.ERR, "body: '" .. debug_hex_string(response.buffer.str) .. "'")
 end
 
 return _M
