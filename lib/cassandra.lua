@@ -167,6 +167,33 @@ local function string_to_number(str)
     return number
 end
 
+local function create_buffer(str)
+    return {str=str, pos=1}
+end
+
+local function read_bytes(buffer, n_bytes)
+    local bytes = string.sub(buffer.str, buffer.pos, buffer.pos + n_bytes - 1)
+    buffer.pos = buffer.pos + n_bytes
+    return bytes
+end
+
+local function read_byte(buffer)
+    return read_bytes(buffer, 1)
+end
+
+local function read_int(buffer)
+    return string_to_number(read_bytes(buffer, 4))
+end
+
+local function read_short(buffer)
+    return string_to_number(read_bytes(buffer, 2))
+end
+
+local function read_string(buffer)
+    local str_size = read_short(buffer)
+    return read_bytes(buffer, str_size)
+end
+
 local function debug_hex_string(str)
     buffer = {}
     for i = 1, #str do
@@ -180,30 +207,31 @@ local function read_frame(self)
     if not header then
         error("Failed to read frame:" .. err)
     end
-    local length = string_to_number(string.sub(header, 5, 8))
+    local header_buffer = create_buffer(header)
+    local version = read_byte(header_buffer)
+    local flags = read_byte(header_buffer)
+    local stream = read_byte(header_buffer)
+    local op_code = read_byte(header_buffer)
+    local length = read_int(header_buffer)
     local body, err, partial = self.sock:receive(length)
     if not body then
         error("Failed to read body:" .. err)
     end
-    ngx.log(ngx.ERR, "received frame: '" .. debug_hex_string(header) .. "', length: " .. length .. ", body: '" .. body .. "'")
-    local version = string.sub(header, 1, 1)
     if version ~= version_codes.RESPONSE then
         error("Invalid response version")
     end
-    local op_code = string.sub(header, 4, 4)
+    local body_buffer = create_buffer(body)
     if op_code == op_codes.ERROR then
-        local error_code = string.sub(body, 1, 4)
-        local hex_error_code = string.format("%x", string_to_number(error_code))
-        local error_message_size = string_to_number(string.sub(body, 5, 6))
-        local error_message = string.sub(body, 7)
-        assert(#error_message == error_message_size)
+        local error_code = read_int(body_buffer)
+        local hex_error_code = string.format("%x", error_code)
+        local error_message = read_string(body_buffer)
         error("Cassandra returned error (" .. hex_error_code .. "): '" .. error_message .. "'")
     end
     return {
-        flags=string.sub(header, 2, 2),
-        stream=string.sub(header, 3, 3),
+        flags=flags,
+        stream=stream,
         op_code=op_code,
-        body=body
+        buffer=body_buffer
     }
 end
 
@@ -218,7 +246,6 @@ local function send_reply_and_get_response(self, op_code, body)
     local length = int_representation(#body)
     local frame = version .. flags .. stream_id .. op_code .. length .. body
 
-    ngx.log(ngx.ERR, "frame: '" .. debug_hex_string(frame) .. "'")
     local bytes, err = self.sock:send(frame)
     if not bytes then
         error("Failed to send data to cassandra: " .. err)
