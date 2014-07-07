@@ -55,6 +55,10 @@ local result_kinds = {
     SCHEMA_CHANGE=5
 }
 
+local types = {
+    custom=0,
+}
+
 local mt = { __index = _M }
 
 ---
@@ -179,27 +183,32 @@ local function create_buffer(str)
     return {str=str, pos=1}
 end
 
-local function read_bytes(buffer, n_bytes)
+local function read_raw_bytes(buffer, n_bytes)
     local bytes = string.sub(buffer.str, buffer.pos, buffer.pos + n_bytes - 1)
     buffer.pos = buffer.pos + n_bytes
     return bytes
 end
 
-local function read_byte(buffer)
-    return read_bytes(buffer, 1)
+local function read_raw_byte(buffer)
+    return read_raw_bytes(buffer, 1)
 end
 
 local function read_int(buffer)
-    return string_to_number(read_bytes(buffer, 4))
+    return string_to_number(read_raw_bytes(buffer, 4))
 end
 
 local function read_short(buffer)
-    return string_to_number(read_bytes(buffer, 2))
+    return string_to_number(read_raw_bytes(buffer, 2))
 end
 
 local function read_string(buffer)
     local str_size = read_short(buffer)
-    return read_bytes(buffer, str_size)
+    return read_raw_bytes(buffer, str_size)
+end
+
+local function read_bytes(buffer)
+    local size = read_int(buffer)
+    return read_raw_bytes(buffer, size)
 end
 
 local function debug_hex_string(str)
@@ -216,10 +225,10 @@ local function read_frame(self)
         error("Failed to read frame:" .. err)
     end
     local header_buffer = create_buffer(header)
-    local version = read_byte(header_buffer)
-    local flags = read_byte(header_buffer)
-    local stream = read_byte(header_buffer)
-    local op_code = read_byte(header_buffer)
+    local version = read_raw_byte(header_buffer)
+    local flags = read_raw_byte(header_buffer)
+    local stream = read_raw_byte(header_buffer)
+    local op_code = read_raw_byte(header_buffer)
     local length = read_int(header_buffer)
     local body, err, partial = self.sock:receive(length)
     if not body then
@@ -241,6 +250,19 @@ local function read_frame(self)
         op_code=op_code,
         buffer=body_buffer
     }
+end
+
+---
+--- BITS methods
+--- http://ricilake.blogspot.com.br/2007/10/iterating-bits-in-lua.html
+---
+
+function bit(p)
+  return 2 ^ (p - 1)
+end
+
+function hasbit(x, p)
+  return x % (p + p) >= p
 end
 
 ---
@@ -279,8 +301,64 @@ function _M.execute(self, query)
     if response.op_code ~= op_codes.RESULT then
         error("Result expected")
     end
-    assert(read_int(response.buffer) == result_kinds.ROWS)
-    ngx.log(ngx.ERR, "body: '" .. debug_hex_string(response.buffer.str) .. "'")
+    buffer = response.buffer
+    local kind = read_int(buffer)
+    assert(kind == result_kinds.ROWS)
+
+    --metadata
+    local flags = read_int(buffer)
+    local global_tables_spec = hasbit(flags, bit(1))
+    local has_more_pages = hasbit(flags, bit(2))
+    local no_metadata = hasbit(flags, bit(3))
+    local columns_count = read_int(buffer)
+    local paging_state = nil
+    if has_more_pages then
+        paging_state = read_bytes(buffer)
+    end
+    local global_keyspace_name = nil
+    local global_table_name = nil
+    if global_tables_spec then
+        global_keyspace_name = read_string(buffer)
+        global_table_name = read_string(buffer)
+    end
+    local columns = {}
+    for j = 1, columns_count do
+        local ksname = global_ksname
+        local tablename = global_tablename
+        if not global_tables_spec then
+            ksname = read_string(buffer)
+            tablename = read_string(buffer)
+        end
+        local column_name = read_string(buffer)
+        local type_id = read_short(buffer)
+        local type_value = nil
+        if type_id == types.custom then
+            type_value = read_string(buffer)
+            -- todo: list, map, set
+        end
+        columns[#columns + 1] = {
+            keyspace = ksname,
+            table = tablename,
+            name = column_name,
+            type = {
+                id=type_id,
+                value=type_value
+            }
+        }
+    end
+
+    -- rows
+    local rows_count = read_int(buffer)
+    local rows_values = {}
+    for i = 1, rows_count do
+        local row_values = {}
+        for j = 1, columns_count do
+            row_values[#row_values + 1] = read_bytes(buffer)
+        end
+        rows_values[#rows_values + 1] = row_values
+    end
+
+    assert(response.buffer.pos == #(response.buffer.str) + 1)
 end
 
 return _M
