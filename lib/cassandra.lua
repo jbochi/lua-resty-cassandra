@@ -346,19 +346,20 @@ function _M.execute(self, query)
             }
         }
     end
-
     -- rows
     local rows_count = read_int(buffer)
-    local rows_values = {}
+    local values = {}
     for i = 1, rows_count do
-        local row_values = {}
+        local row = {}
         for j = 1, columns_count do
-            row_values[#row_values + 1] = read_bytes(buffer)
+            local value = read_bytes(buffer)
+            row[j] = value
+            row[columns[j].name] = value
         end
-        rows_values[#rows_values + 1] = row_values
+        values[#values + 1] = row
     end
-
     assert(response.buffer.pos == #(response.buffer.str) + 1)
+    return values
 end
 
 return _M
