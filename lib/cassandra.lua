@@ -33,6 +33,20 @@ local op_codes = {
     AUTH_SUCCESS='\016',
 }
 
+local consistency = {
+    ANY='\000\000',
+    ONE='\000\001',
+    TWO='\000\002',
+    THREE='\000\003',
+    QUORUM='\000\004',
+    ALL='\000\005',
+    LOCAL_QUORUM='\000\006',
+    EACH_QUORUM='\000\007',
+    SERIAL='\000\008',
+    LOCAL_SERIAL='\000\009',
+    LOCAL_ONE='\000\010'
+}
+
 local mt = { __index = _M }
 
 ---
@@ -124,6 +138,10 @@ local function string_representation(str)
     return short_representation(#str) .. str
 end
 
+local function long_string_representation(str)
+    return int_representation(#str) .. str
+end
+
 local function string_map_representation(map)
     local buffer = {}
     local n = 0
@@ -143,7 +161,7 @@ local function string_to_number(str)
     local number = 0
     local exponent = 1
     for i = #str, 1, -1 do
-        number = string.byte(str, i) * exponent
+        number = number + string.byte(str, i) * exponent
         exponent = exponent * 16
     end
     return number
@@ -167,15 +185,24 @@ local function read_frame(self)
     if not body then
         error("Failed to read body:" .. err)
     end
-    ngx.log(ngx.ERR, "received frame: '" .. debug_hex_string(header) .. "', length: " .. length .. ", body: '" .. body .. "")
+    ngx.log(ngx.ERR, "received frame: '" .. debug_hex_string(header) .. "', length: " .. length .. ", body: '" .. body .. "'")
     local version = string.sub(header, 1, 1)
     if version ~= version_codes.RESPONSE then
         error("Invalid response version")
     end
+    local op_code = string.sub(header, 4, 4)
+    if op_code == op_codes.ERROR then
+        local error_code = string.sub(body, 1, 4)
+        local hex_error_code = string.format("%x", string_to_number(error_code))
+        local error_message_size = string_to_number(string.sub(body, 5, 6))
+        local error_message = string.sub(body, 7)
+        assert(#error_message == error_message_size)
+        error("Cassandra returned error (" .. hex_error_code .. "): '" .. error_message .. "'")
+    end
     return {
         flags=string.sub(header, 2, 2),
         stream=string.sub(header, 3, 3),
-        op_code=string.sub(header, 4, 4),
+        op_code=op_code,
         body=body
     }
 end
@@ -206,6 +233,14 @@ function _M.startup(self)
         error("Server is not ready")
     end
     return true
+end
+
+function _M.execute(self, query)
+    local query_repr = long_string_representation(query)
+    local flags = '\000'
+    local query_params = consistency.ANY .. flags
+    local body = query_repr .. query_params
+    local response = send_reply_and_get_response(self, op_codes.STARTUP, body)
 end
 
 return _M
