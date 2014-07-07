@@ -35,6 +35,10 @@ local op_codes = {
 
 local mt = { __index = _M }
 
+---
+--- SOCKET METHODS
+---
+
 function _M.new(self)
     local sock, err = tcp()
     if not sock then
@@ -134,6 +138,7 @@ end
 ---
 --- DECODE FUNCTIONS
 ---
+
 local function string_to_number(str)
     local number = 0
     local exponent = 1
@@ -175,12 +180,14 @@ local function read_frame(self)
     }
 end
 
-function _M.startup(self)
+---
+--- CLIENT METHODS
+---
+
+local function send_reply_and_get_response(self, op_code, body)
     local version = version_codes.REQUEST
     local flags = '\000'
     local stream_id = '\000'
-    local op_code = op_codes.STARTUP
-    local body = string_map_representation({["CQL_VERSION"]=CQL_VERSION})
     local length = int_representation(#body)
     local frame = version .. flags .. stream_id .. op_code .. length .. body
 
@@ -189,13 +196,16 @@ function _M.startup(self)
     if not bytes then
         error("Failed to send data to cassandra: " .. err)
     end
+    return read_frame(self)
+end
 
-    local response = read_frame(self)
+function _M.startup(self)
+    local body = string_map_representation({["CQL_VERSION"]=CQL_VERSION})
+    local response = send_reply_and_get_response(self, op_codes.STARTUP, body)
     if response.op_code ~= op_codes.READY then
         error("Server is not ready")
     end
     return true
 end
-
 
 return _M
