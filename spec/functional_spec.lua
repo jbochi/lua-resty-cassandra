@@ -36,7 +36,10 @@ describe("cassandra", function()
   describe("a table", function()
     before_each(function()
       session:set_keyspace("lua_tests")
-      session:execute("DROP TABLE users")
+      local res, err = session:execute("SELECT columnfamily_name FROM system.schema_columnfamilies WHERE keyspace_name='lua_tests' and columnfamily_name='users'")
+      if #res > 0 then
+        session:execute("DROP TABLE users")
+      end
     end)
 
     it("should be possible to be created", function()
