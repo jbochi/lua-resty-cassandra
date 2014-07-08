@@ -366,7 +366,9 @@ function _M.execute(self, query)
     end
     buffer = response.buffer
     local kind = read_int(buffer)
-    if kind == result_kinds.ROWS then
+    if kind == result_kinds.VOID then
+        return true
+    elseif kind == result_kinds.ROWS then
         return parse_rows(buffer)
     elseif kind == result_kinds.SET_KEYSPACE then
         local keyspace = read_string(buffer)

@@ -45,12 +45,27 @@ describe("cassandra", function()
     it("should be possible to be created", function()
       local res, err = session:execute([[
           CREATE TABLE users (
-            user varchar PRIMARY KEY,
-            age int,
-            email varchar
+            user_id uuid PRIMARY KEY,
+            name varchar,
+            age int
           )
       ]])
       assert.same("lua_tests.users CREATED", res)
+    end)
+
+    it("should be possible to insert a row", function()
+      session:execute([[
+          CREATE TABLE users (
+            user_id uuid PRIMARY KEY,
+            name varchar,
+            age int
+          )
+      ]])
+      local ok, err = session:execute([[
+        INSERT INTO users (name, age, user_id)
+        VALUES ('John O''Reilly', 42, 2644bada-852c-11e3-89fb-e0b9a54a6d93)
+      ]])
+      assert.truthy(ok)
     end)
   end)
 end)
