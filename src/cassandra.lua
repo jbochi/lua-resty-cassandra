@@ -154,6 +154,10 @@ local function long_string_representation(str)
     return int_representation(#str) .. str
 end
 
+local function short_bytes_representation(bytes)
+    return short_representation(#bytes) .. bytes
+end
+
 local function string_map_representation(map)
     local buffer = {}
     local n = 0
@@ -208,6 +212,11 @@ end
 
 local function read_bytes(buffer)
     local size = read_int(buffer)
+    return read_raw_bytes(buffer, size)
+end
+
+local function read_short_bytes(buffer)
+    local size = read_short(buffer)
     return read_raw_bytes(buffer, size)
 end
 
@@ -297,8 +306,7 @@ function _M.startup(self)
     return true
 end
 
-local function parse_rows(buffer)
-    --metadata
+local function parse_metadata(buffer)
     local flags = read_int(buffer)
     local global_tables_spec = hasbit(flags, bit(1))
     local has_more_pages = hasbit(flags, bit(2))
@@ -339,7 +347,12 @@ local function parse_rows(buffer)
             }
         }
     end
-    -- rows
+    return {columns_count=columns_count, columns=columns}
+end
+
+local function parse_rows(buffer, metadata)
+    local columns = metadata.columns
+    local columns_count = metadata.columns_count
     local rows_count = read_int(buffer)
     local values = {}
     for i = 1, rows_count do
@@ -355,12 +368,39 @@ local function parse_rows(buffer)
     return values
 end
 
+function _M.prepare(self, query)
+    local body = long_string_representation(query)
+    local response = send_reply_and_get_response(self, op_codes.PREPARE, body)
+    if response.op_code ~= op_codes.RESULT then
+        error("Result expected")
+    end
+    buffer = response.buffer
+    local kind = read_int(buffer)
+    if kind == result_kinds.PREPARED then
+        local id = read_short_bytes(buffer)
+        local metadata = parse_metadata(buffer)
+        local result_metadata = parse_metadata(buffer)
+        assert(buffer.pos == #(buffer.str) + 1)
+        return {id=id, metadata=metadata, result_metadata=result_metadata}
+    else
+        error("Invalid result kind")
+    end
+end
+
 function _M.execute(self, query)
-    local query_repr = long_string_representation(query)
+    local op_code, query_repr
+    if type(query) == "string" then
+        op_code = op_codes.QUERY
+        query_repr = long_string_representation(query)
+    else
+        op_code = op_codes.EXECUTE
+        query_repr = short_bytes_representation(query.id)
+    end
     local flags = '\000'
     local query_params = consistency.ONE .. flags
-    local body = query_repr .. query_params
-    local response = send_reply_and_get_response(self, op_codes.QUERY, body)
+    body = query_repr .. query_params
+    local response = send_reply_and_get_response(self, op_code, body)
+
     if response.op_code ~= op_codes.RESULT then
         error("Result expected")
     end
@@ -369,7 +409,8 @@ function _M.execute(self, query)
     if kind == result_kinds.VOID then
         return true
     elseif kind == result_kinds.ROWS then
-        return parse_rows(buffer)
+        local metadata = parse_metadata(buffer)
+        return parse_rows(buffer, metadata)
     elseif kind == result_kinds.SET_KEYSPACE then
         local keyspace = read_string(buffer)
         return keyspace

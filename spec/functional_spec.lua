@@ -17,8 +17,16 @@ describe("cassandra", function()
     assert.truthy(connected)
   end)
 
-  it("should be queryble", function()
+  it("should be queryable", function()
     local rows, err = session:execute("SELECT cql_version, native_protocol_version, release_version FROM system.local");
+    assert.same(1, #rows)
+    assert.same(rows[1].native_protocol_version, "2")
+  end)
+
+  it("should support prepared statements", function()
+    local stmt, err = session:prepare("SELECT native_protocol_version FROM system.local");
+    assert.truthy(stmt)
+    local rows = session:execute(stmt)
     assert.same(1, #rows)
     assert.same(rows[1].native_protocol_version, "2")
   end)
