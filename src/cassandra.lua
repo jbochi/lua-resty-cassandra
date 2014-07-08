@@ -230,9 +230,14 @@ local function read_frame(self)
     local stream = read_raw_byte(header_buffer)
     local op_code = read_raw_byte(header_buffer)
     local length = read_int(header_buffer)
-    local body, err, partial = self.sock:receive(length)
-    if not body then
-        error("Failed to read body:" .. err)
+    local body, err, partial
+    if length > 0 then
+        body, err, partial = self.sock:receive(length)
+        if not body then
+            error("Failed to read body:" .. err)
+        end
+    else
+        body = ""
     end
     if version ~= version_codes.RESPONSE then
         error("Invalid response version")
