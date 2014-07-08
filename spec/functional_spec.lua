@@ -48,31 +48,38 @@ describe("cassandra", function()
       if #res > 0 then
         session:execute("DROP TABLE users")
       end
+      table_created, err = session:execute([[
+          CREATE TABLE users (
+            user_id uuid PRIMARY KEY,
+            name varchar,
+            age int
+          )
+      ]])
     end)
 
     it("should be possible to be created", function()
-      local res, err = session:execute([[
-          CREATE TABLE users (
-            user_id uuid PRIMARY KEY,
-            name varchar,
-            age int
-          )
-      ]])
-      assert.same("lua_tests.users CREATED", res)
+      assert.same("lua_tests.users CREATED", table_created)
     end)
 
     it("should be possible to insert a row", function()
-      session:execute([[
-          CREATE TABLE users (
-            user_id uuid PRIMARY KEY,
-            name varchar,
-            age int
-          )
-      ]])
       local ok, err = session:execute([[
         INSERT INTO users (name, age, user_id)
         VALUES ('John O''Reilly', 42, 2644bada-852c-11e3-89fb-e0b9a54a6d93)
       ]])
+      assert.truthy(ok)
+    end)
+
+    it("should support arguments", function()
+      local ok, err = session:execute([[
+        INSERT INTO users (name, age, user_id)
+        VALUES (?, ?, ?)
+      ]], {"Juarez S' Bochi", 31, {type="uuid", value="1144bada-852c-11e3-89fb-e0b9a54a6d11"}})
+      local users, err = session:execute("SELECT name, age, user_id from users")
+      assert.same(1, #users)
+      local user = users[1]
+      assert.same("Juarez S' Bochi", user.name)
+      assert.same("1144bada-852c-11e3-89fb-e0b9a54a6d11", user.user_id)
+      assert.same(31, user.age)
       assert.truthy(ok)
     end)
   end)

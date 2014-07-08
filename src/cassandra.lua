@@ -146,12 +146,21 @@ local function short_representation(num)
     return big_endian_representation(num, 2)
 end
 
+local function uuid_representation(value)
+    local num = tonumber(string.gsub(value, "-", ""), 16)
+    return big_endian_representation(num, 16)
+end
+
 local function string_representation(str)
     return short_representation(#str) .. str
 end
 
 local function long_string_representation(str)
     return int_representation(#str) .. str
+end
+
+local function bytes_representation(bytes)
+    return int_representation(#bytes) .. bytes
 end
 
 local function short_bytes_representation(bytes)
@@ -387,7 +396,7 @@ function _M.prepare(self, query)
     end
 end
 
-function _M.execute(self, query)
+function _M.execute(self, query, args)
     local op_code, query_repr
     if type(query) == "string" then
         op_code = op_codes.QUERY
@@ -396,9 +405,28 @@ function _M.execute(self, query)
         op_code = op_codes.EXECUTE
         query_repr = short_bytes_representation(query.id)
     end
-    local flags = '\000'
-    local query_params = consistency.ONE .. flags
-    body = query_repr .. query_params
+
+    local values = {}
+    if not args then
+        flags = string.char(0)
+    else
+        flags = string.char(1)
+        values[#values + 1] = short_representation(#args)
+        for _, value in ipairs(args) do
+            local value_representation = value
+            if type(value) == 'number' then
+                value_representation = int_representation(value)
+            elseif type(value) == 'table' and value.type == 'uuid' then
+                value_representation = uuid_representation(value.value)
+            else
+                value_representation = value
+            end
+            values[#values + 1] = bytes_representation(value_representation)
+        end
+    end
+
+    local query_parameters = consistency.ONE .. flags
+    body = query_repr .. query_parameters .. table.concat(values)
     local response = send_reply_and_get_response(self, op_code, body)
 
     if response.op_code ~= op_codes.RESULT then
