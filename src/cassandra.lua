@@ -367,4 +367,8 @@ function _M.execute(self, query)
     return values
 end
 
+function _M.set_keyspace(self, keyspace_name)
+    return self:execute("USE " .. keyspace_name)
+end
+
 return _M
