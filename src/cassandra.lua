@@ -247,7 +247,7 @@ local function read_frame(self)
         local error_code = read_int(body_buffer)
         local hex_error_code = string.format("%x", error_code)
         local error_message = read_string(body_buffer)
-        error("Cassandra returned error (" .. hex_error_code .. "): '" .. error_message .. "'")
+        error('Cassandra returned error (' .. hex_error_code .. '): "' .. error_message .. '"')
     end
     return {
         flags=flags,
@@ -297,19 +297,7 @@ function _M.startup(self)
     return true
 end
 
-function _M.execute(self, query)
-    local query_repr = long_string_representation(query)
-    local flags = '\000'
-    local query_params = consistency.ONE .. flags
-    local body = query_repr .. query_params
-    local response = send_reply_and_get_response(self, op_codes.QUERY, body)
-    if response.op_code ~= op_codes.RESULT then
-        error("Result expected")
-    end
-    buffer = response.buffer
-    local kind = read_int(buffer)
-    assert(kind == result_kinds.ROWS)
-
+local function parse_rows(buffer)
     --metadata
     local flags = read_int(buffer)
     local global_tables_spec = hasbit(flags, bit(1))
@@ -363,8 +351,29 @@ function _M.execute(self, query)
         end
         values[#values + 1] = row
     end
-    assert(response.buffer.pos == #(response.buffer.str) + 1)
+    assert(buffer.pos == #(buffer.str) + 1)
     return values
+end
+
+function _M.execute(self, query)
+    local query_repr = long_string_representation(query)
+    local flags = '\000'
+    local query_params = consistency.ONE .. flags
+    local body = query_repr .. query_params
+    local response = send_reply_and_get_response(self, op_codes.QUERY, body)
+    if response.op_code ~= op_codes.RESULT then
+        error("Result expected")
+    end
+    buffer = response.buffer
+    local kind = read_int(buffer)
+    if kind == result_kinds.ROWS then
+        return parse_rows(buffer)
+    elseif kind == result_kinds.SET_KEYSPACE then
+        local keyspace = read_string(buffer)
+        return keyspace
+    else
+        error("Invalid result kind")
+    end
 end
 
 function _M.set_keyspace(self, keyspace_name)

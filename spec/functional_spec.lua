@@ -7,6 +7,10 @@ describe("cassandra", function()
     session = cassandra.new()
     session:set_timeout(1000)
     connected, err = session:connect("127.0.0.1", 9042)
+    local res, err = pcall(session.execute, session, [[
+      CREATE KEYSPACE lua_tests
+      WITH REPLICATION = { 'class' : 'SimpleStrategy', 'replication_factor' : 3 }
+    ]])
   end)
 
   it("should be possible to connect", function()
@@ -21,6 +25,11 @@ describe("cassandra", function()
 
   it("should catch errors", function()
     local ok, err = pcall(session.set_keyspace, session, "invalid_keyspace")
-    assert.truthy(string.find(err, "Keyspace 'invalid_keyspace' does not exist'"))
+    assert.truthy(string.find(err, "Keyspace 'invalid_keyspace' does not exist"))
+  end)
+
+  it("should be possible to use a namespace", function()
+    local ok, err = session:set_keyspace("lua_tests")
+    assert.truthy(ok)
   end)
 end)
