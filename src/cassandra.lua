@@ -371,6 +371,11 @@ function _M.execute(self, query)
     elseif kind == result_kinds.SET_KEYSPACE then
         local keyspace = read_string(buffer)
         return keyspace
+    elseif kind == result_kinds.SCHEMA_CHANGE then
+        local change = read_string(buffer)
+        local keyspace = read_string(buffer)
+        local table = read_string(buffer)
+        return keyspace .. "." .. table .. " " .. change
     else
         error("Invalid result kind")
     end

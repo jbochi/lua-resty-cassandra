@@ -32,4 +32,22 @@ describe("cassandra", function()
     local ok, err = session:set_keyspace("lua_tests")
     assert.truthy(ok)
   end)
+
+  describe("a table", function()
+    before_each(function()
+      session:set_keyspace("lua_tests")
+      session:execute("DROP TABLE users")
+    end)
+
+    it("should be possible to be created", function()
+      local res, err = session:execute([[
+          CREATE TABLE users (
+            user varchar PRIMARY KEY,
+            age int,
+            email varchar
+          )
+      ]])
+      assert.same("lua_tests.users CREATED", res)
+    end)
+  end)
 end)
