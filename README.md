@@ -16,7 +16,6 @@ You can check some examples on the [tests](https://github.com/jbochi/lua-resty-c
 Running tests
 -------------
 
-We use busted and require luasocket to mock ngx.socket.tcp(). To run the tests, just run:
+We use `busted` and require `luasocket` to mock `ngx.socket.tcp()`. To run the tests, start a local cassandra instance and run:
 
     $ busted
-
