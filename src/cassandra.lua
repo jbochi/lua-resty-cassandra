@@ -294,7 +294,9 @@ end
 
 local function read_value(buffer, type)
     bytes = read_bytes(buffer)
-    if type.id == types.uuid then
+    if type.id == types.int then
+        return string_to_number(bytes)
+    elseif type.id == types.uuid then
         return read_uuid(bytes)
     end
     return bytes
