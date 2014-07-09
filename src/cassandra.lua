@@ -57,6 +57,25 @@ local result_kinds = {
 
 local types = {
     custom=0,
+    ascii=1,
+    bigint=2,
+    blob=3,
+    boolean=4,
+    counter=5,
+    decimal=6,
+    double=7,
+    float=8,
+    int=9,
+    text=10,
+    timestamp=11,
+    uuid=12,
+    varchar=13,
+    varint=14,
+    timeuuid=15,
+    inet=16,
+    list=32,
+    map=33,
+    set=34
 }
 
 local mt = { __index = _M }
@@ -178,6 +197,18 @@ local function string_map_representation(map)
     return short_representation(n) .. table.concat(buffer)
 end
 
+local function value_representation(value)
+    local representation = value
+    if type(value) == 'number' then
+        representation = int_representation(value)
+    elseif type(value) == 'table' and value.type == 'uuid' then
+        representation = uuid_representation(value.value)
+    else
+        representation = value
+    end
+    return bytes_representation(representation)
+end
+
 ---
 --- DECODE FUNCTIONS
 ---
@@ -227,6 +258,25 @@ end
 local function read_short_bytes(buffer)
     local size = read_short(buffer)
     return read_raw_bytes(buffer, size)
+end
+
+local function read_option(bufffer)
+    local type_id = read_short(buffer)
+    local type_value = nil
+    if type_id == types.custom then
+        type_value = read_string(buffer)
+    elseif type_id == types.list then
+        type_value = read_option(buffer)
+    elseif type_id == types.map then
+        type_value = {read_option(buffer), read_option(buffer)}
+    elseif type_id == types.set then
+        type_value = {read_option(buffer)}
+    end
+    return {id=type_id, value=type_value}
+end
+
+local function read_value(buffer)
+    return read_bytes(buffer)
 end
 
 local function debug_hex_string(str)
@@ -340,20 +390,12 @@ local function parse_metadata(buffer)
             tablename = read_string(buffer)
         end
         local column_name = read_string(buffer)
-        local type_id = read_short(buffer)
-        local type_value = nil
-        if type_id == types.custom then
-            type_value = read_string(buffer)
-            -- todo: list, map, set
-        end
+        local type = read_option(buffer)
         columns[#columns + 1] = {
             keyspace = ksname,
             table = tablename,
             name = column_name,
-            type = {
-                id=type_id,
-                value=type_value
-            }
+            type = type
         }
     end
     return {columns_count=columns_count, columns=columns}
@@ -367,7 +409,7 @@ local function parse_rows(buffer, metadata)
     for i = 1, rows_count do
         local row = {}
         for j = 1, columns_count do
-            local value = read_bytes(buffer)
+            local value = read_value(buffer, columns[j].type)
             row[j] = value
             row[columns[j].name] = value
         end
@@ -413,15 +455,7 @@ function _M.execute(self, query, args)
         flags = string.char(1)
         values[#values + 1] = short_representation(#args)
         for _, value in ipairs(args) do
-            local value_representation = value
-            if type(value) == 'number' then
-                value_representation = int_representation(value)
-            elseif type(value) == 'table' and value.type == 'uuid' then
-                value_representation = uuid_representation(value.value)
-            else
-                value_representation = value
-            end
-            values[#values + 1] = bytes_representation(value_representation)
+            values[#values + 1] = value_representation(value)
         end
     end
 
