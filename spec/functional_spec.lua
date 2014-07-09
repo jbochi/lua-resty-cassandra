@@ -87,6 +87,7 @@ describe("cassandra", function()
   local types = {
     {name='ascii', insert_value='juarez', read_value='juarez'},
     {name='bigint', insert_value={type='bigint', value=42000000000}, read_value=42000000000},
+    {name='blob', insert_value="\005\042", read_value="\005\042"},
   }
 
   for _, type in ipairs(types) do
