@@ -202,12 +202,18 @@ local function string_map_representation(map)
     return short_representation(n) .. table.concat(buffer)
 end
 
+local function boolean_representation(value)
+    if value then return "\001" else return "\000" end
+end
+
 local function value_representation(value)
     local representation = value
     if type(value) == 'number' then
         representation = int_representation(value)
     elseif type(value) == 'table' and value.type == 'bigint' then
         representation = big_endian_representation(value.value, 8)
+    elseif type(value) == 'boolean' then
+        representation = boolean_representation(value)
     elseif type(value) == 'table' and value.type == 'uuid' then
         representation = uuid_representation(value.value)
     else
@@ -282,6 +288,10 @@ local function read_option(bufffer)
     return {id=type_id, value=type_value}
 end
 
+local function read_boolean(bytes)
+    return string.byte(bytes) == 1
+end
+
 local function read_uuid(bytes)
     buffer = {}
     for i = 1, #bytes do
@@ -298,6 +308,8 @@ local function read_value(buffer, type)
     bytes = read_bytes(buffer)
     if type.id == types.int or type.id == types.bigint then
         return string_to_number(bytes)
+    elseif type.id == types.boolean then
+        return read_boolean(bytes)
     elseif type.id == types.uuid then
         return read_uuid(bytes)
     end
