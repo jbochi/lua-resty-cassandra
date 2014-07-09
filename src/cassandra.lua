@@ -166,8 +166,13 @@ local function short_representation(num)
 end
 
 local function uuid_representation(value)
-    local num = tonumber(string.gsub(value, "-", ""), 16)
-    return big_endian_representation(num, 16)
+    local str = string.gsub(value, "-", "")
+    local buffer = {}
+    for i = 1, #str, 2 do
+        local byte_str =  string.sub(str, i, i + 1)
+        buffer[#buffer + 1] = string.char(tonumber(byte_str, 16))
+    end
+    return table.concat(buffer)
 end
 
 local function string_representation(str)
@@ -275,16 +280,24 @@ local function read_option(bufffer)
     return {id=type_id, value=type_value}
 end
 
-local function read_value(buffer)
-    return read_bytes(buffer)
+local function read_uuid(bytes)
+    buffer = {}
+    for i = 1, #bytes do
+        buffer[i] = string.format("%02x", string.byte(bytes, i))
+    end
+    table.insert(buffer, 5, "-")
+    table.insert(buffer, 8, "-")
+    table.insert(buffer, 11, "-")
+    table.insert(buffer, 14, "-")
+    return table.concat(buffer)
 end
 
-local function debug_hex_string(str)
-    buffer = {}
-    for i = 1, #str do
-        buffer[i] = string.byte(str, i)
+local function read_value(buffer, type)
+    bytes = read_bytes(buffer)
+    if type.id == types.uuid then
+        return read_uuid(bytes)
     end
-    return table.concat(buffer, " ")
+    return bytes
 end
 
 local function read_frame(self)
