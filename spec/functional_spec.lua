@@ -90,6 +90,7 @@ describe("cassandra", function()
     {name='blob', insert_value="\005\042", read_value="\005\042"},
     {name='boolean', insert_value=true, read_value=true},
     {name='boolean', insert_value=false, read_value=false},
+    {name='text', insert_value='juarez', read_value='juarez'},
   }
 
   for _, type in ipairs(types) do
