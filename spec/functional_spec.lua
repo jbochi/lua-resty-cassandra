@@ -83,4 +83,34 @@ describe("cassandra", function()
       assert.truthy(ok)
     end)
   end)
+
+  local types = {
+    {name='ascii', insert_value='juarez', read_value='juarez'},
+  }
+
+  for _, type in ipairs(types) do
+    describe("the type " .. type.name, function()
+      before_each(function()
+        session:set_keyspace("lua_tests")
+        session:execute([[
+          CREATE TABLE type_test_table (
+            key varchar PRIMARY KEY,
+            value ]] .. type.name .. [[
+          )
+        ]])
+      end)
+      it("should be possible to insert and get value back", function()
+        session:execute([[
+          INSERT INTO type_test_table (key, value)
+          VALUES (?, ?)
+        ]], {"key", type.insert_value})
+        local rows, err = session:execute("SELECT value from type_test_table WHERE key = 'key'")
+        assert.same(1, #rows)
+        assert.same(type.read_value, rows[1].value)
+      end)
+      after_each(function()
+        session:execute("DROP TABLE type_test_table")
+      end)
+    end)
+  end
 end)
