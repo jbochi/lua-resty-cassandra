@@ -206,6 +206,8 @@ local function value_representation(value)
     local representation = value
     if type(value) == 'number' then
         representation = int_representation(value)
+    elseif type(value) == 'table' and value.type == 'bigint' then
+        representation = big_endian_representation(value.value, 8)
     elseif type(value) == 'table' and value.type == 'uuid' then
         representation = uuid_representation(value.value)
     else
@@ -223,7 +225,7 @@ local function string_to_number(str)
     local exponent = 1
     for i = #str, 1, -1 do
         number = number + string.byte(str, i) * exponent
-        exponent = exponent * 16
+        exponent = exponent * 256
     end
     return number
 end
@@ -294,7 +296,7 @@ end
 
 local function read_value(buffer, type)
     bytes = read_bytes(buffer)
-    if type.id == types.int then
+    if type.id == types.int or type.id == types.bigint then
         return string_to_number(bytes)
     elseif type.id == types.uuid then
         return read_uuid(bytes)
