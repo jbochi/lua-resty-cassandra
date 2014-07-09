@@ -69,7 +69,7 @@ describe("cassandra", function()
       assert.truthy(ok)
     end)
 
-    it("should support arguments", function()
+    it("should support queries with arguments", function()
       local ok, err = session:execute([[
         INSERT INTO users (name, age, user_id)
         VALUES (?, ?, ?)
