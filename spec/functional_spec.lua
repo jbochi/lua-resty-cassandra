@@ -108,7 +108,7 @@ describe("cassandra", function()
           INSERT INTO type_test_table (key, value)
           VALUES (?, ?)
         ]], {"key", type.insert_value})
-        local rows, err = session:execute("SELECT value from type_test_table WHERE key = 'key'")
+        local rows, err = session:execute("SELECT value FROM type_test_table WHERE key = 'key'")
         assert.same(1, #rows)
         assert.same(type.read_value, rows[1].value)
       end)
@@ -117,4 +117,29 @@ describe("cassandra", function()
       end)
     end)
   end
+
+  describe("counters", function()
+    before_each(function()
+      session:set_keyspace("lua_tests")
+      session:execute([[
+        CREATE TABLE type_test_table (
+          key varchar PRIMARY KEY,
+          value counter
+        )
+      ]])
+    end)
+    it("should be possible to increment and get value back", function()
+      session:execute([[
+        UPDATE type_test_table
+        SET value = value + ?
+        WHERE key = ?
+      ]], {{type="counter", value=10}, "key"})
+      local rows, err = session:execute("SELECT value FROM type_test_table WHERE key = 'key'")
+      assert.same(1, #rows)
+      assert.same(10, rows[1].value)
+    end)
+    after_each(function()
+      session:execute("DROP TABLE type_test_table")
+    end)
+  end)
 end)
