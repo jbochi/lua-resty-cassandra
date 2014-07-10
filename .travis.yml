@@ -12,7 +12,7 @@ install:
   - sudo apt-get install luajit
   - sudo apt-get install luarocks
   - sudo luarocks install luafilesystem
-  - sudo luarocks install busted
+  - sudo luarocks install busted 1.11.1
   - sudo luarocks install luasocket
 
 services:
