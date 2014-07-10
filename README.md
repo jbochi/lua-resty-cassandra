@@ -1,3 +1,5 @@
+[![Build Status](https://travis-ci.org/jbochi/lua-resty-cassandra.svg?branch=master)](https://travis-ci.org/jbochi/lua-resty-cassandra)
+
 lua-resty-cassandra
 ===================
 
