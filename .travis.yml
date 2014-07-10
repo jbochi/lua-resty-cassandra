@@ -1,4 +1,4 @@
-language: lua
+language: erlang
 
 env:
   - LUA=""
