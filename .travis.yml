@@ -18,7 +18,7 @@ install:
 services:
   - cassandra
 
-script: "busted spec"
+script: "busted"
 
 notifications:
   webhooks:
