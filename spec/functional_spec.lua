@@ -96,7 +96,7 @@ describe("cassandra", function()
     -- todo: double,
     -- todo: float,
     {name='int', insert_value=4200, read_value=4200},
-    -- todo: signed int,
+    -- todo: signed int: {name='int', insert_value=-42, read_value=42},
     {name='text', insert_value='juarez', read_value='juarez'},
     -- todo: timestamp,
     {name='uuid', insert_value={type='uuid', value="1144bada-852c-11e3-89fb-e0b9a54a6d11"}, read_value="1144bada-852c-11e3-89fb-e0b9a54a6d11"},
