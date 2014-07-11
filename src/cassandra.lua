@@ -147,6 +147,10 @@ _M.close = close
 ---
 
 local function big_endian_representation(num, bytes)
+    if num < 0 then
+        -- 2's complement
+        num = math.pow(256, bytes) + num
+    end
     local t = {}
     while num > 0 do
         local rest = math.fmod(num, 256)
@@ -228,12 +232,16 @@ end
 --- DECODE FUNCTIONS
 ---
 
-local function string_to_number(str)
+local function string_to_number(str, signed)
     local number = 0
     local exponent = 1
     for i = #str, 1, -1 do
         number = number + string.byte(str, i) * exponent
         exponent = exponent * 256
+    end
+    if signed and number > exponent / 2 then
+        -- 2's complement
+        number = number - exponent
     end
     return number
 end
@@ -253,11 +261,11 @@ local function read_raw_byte(buffer)
 end
 
 local function read_int(buffer)
-    return string_to_number(read_raw_bytes(buffer, 4))
+    return string_to_number(read_raw_bytes(buffer, 4), true)
 end
 
 local function read_short(buffer)
-    return string_to_number(read_raw_bytes(buffer, 2))
+    return string_to_number(read_raw_bytes(buffer, 2), false)
 end
 
 local function read_string(buffer)
@@ -309,7 +317,7 @@ end
 local function read_value(buffer, type)
     bytes = read_bytes(buffer)
     if type.id == types.int or type.id == types.bigint or type.id == types.counter then
-        return string_to_number(bytes)
+        return string_to_number(bytes, true)
     elseif type.id == types.boolean then
         return read_boolean(bytes)
     elseif type.id == types.uuid then
