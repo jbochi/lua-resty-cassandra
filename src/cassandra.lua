@@ -327,6 +327,13 @@ local function read_value(buffer, type)
     return bytes
 end
 
+local function read_error(buffer)
+    local error_code = read_int(buffer)
+    local hex_error_code = string.format("%x", error_code)
+    local error_message = read_string(buffer)
+    return 'Cassandra returned error (0x' .. hex_error_code .. '): "' .. error_message .. '"'
+end
+
 local function read_frame(self)
     local header, err, partial = self.sock:receive(8)
     if not header then
@@ -352,11 +359,7 @@ local function read_frame(self)
     end
     local body_buffer = create_buffer(body)
     if op_code == op_codes.ERROR then
-        local error_code = read_int(body_buffer)
-        local hex_error_code = string.format("%x", error_code)
-        local error_message = read_string(body_buffer)
-        local err = 'Cassandra returned error (0x' .. hex_error_code .. '): "' .. error_message .. '"'
-        return nil, err
+        return nil, read_error(body_buffer)
     end
     return {
         flags=flags,
