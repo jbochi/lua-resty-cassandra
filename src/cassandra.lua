@@ -9,28 +9,28 @@ _M.version = "0.0.1"
 local CQL_VERSION = "3.0.0"
 
 local version_codes = {
-    REQUEST='\002',
-    RESPONSE='\130', --\x82
+    REQUEST=0x02,
+    RESPONSE=0x82
 }
 
 local op_codes = {
-    ERROR='\000',
-    STARTUP='\001',
-    READY='\002',
-    AUTHENTICATE='\003',
-    --\004
-    OPTIONS='\005',
-    SUPPORTED='\006',
-    QUERY='\007',
-    RESULT='\008',
-    PREPARE='\009',
-    EXECUTE='\010',
-    REGISTER='\011',
-    EVENT='\012',
-    BATCH='\013',
-    AUTH_CHALLENGE='\014',
-    AUTH_RESPONSE='\015',
-    AUTH_SUCCESS='\016',
+    ERROR=0x00,
+    STARTUP=0x01,
+    READY=0x02,
+    AUTHENTICATE=0x03,
+    -- 0x04
+    OPTIONS=0x05,
+    SUPPORTED=0x06,
+    QUERY=0x07,
+    RESULT=0x08,
+    PREPARE=0x09,
+    EXECUTE=0x0A,
+    REGISTER=0x0B,
+    EVENT=0x0C,
+    BATCH=0x0D,
+    AUTH_CHALLENGE=0x0E,
+    AUTH_RESPONSE=0x0F,
+    AUTH_SUCCESS=0x10,
 }
 
 local consistency = {
@@ -48,11 +48,11 @@ local consistency = {
 }
 
 local result_kinds = {
-    VOID=1,
-    ROWS=2,
-    SET_KEYSPACE=3,
-    PREPARED=4,
-    SCHEMA_CHANGE=5
+    VOID=0x01,
+    ROWS=0x02,
+    SET_KEYSPACE=0x03,
+    PREPARED=0x04,
+    SCHEMA_CHANGE=0x05
 }
 
 local types = {
@@ -257,7 +257,7 @@ local function read_raw_bytes(buffer, n_bytes)
 end
 
 local function read_raw_byte(buffer)
-    return read_raw_bytes(buffer, 1)
+    return string.byte(read_raw_bytes(buffer, 1))
 end
 
 local function read_int(buffer)
@@ -382,11 +382,11 @@ end
 ---
 
 local function send_reply_and_get_response(self, op_code, body)
-    local version = version_codes.REQUEST
+    local version = string.char(version_codes.REQUEST)
     local flags = '\000'
     local stream_id = '\000'
     local length = int_representation(#body)
-    local frame = version .. flags .. stream_id .. op_code .. length .. body
+    local frame = version .. flags .. stream_id .. string.char(op_code) .. length .. body
 
     local bytes, err = self.sock:send(frame)
     if not bytes then
