@@ -33,7 +33,7 @@ describe("cassandra", function()
 
   it("should catch errors", function()
     local ok, err = session:set_keyspace("invalid_keyspace")
-    assert.truthy(string.find(err, "Keyspace 'invalid_keyspace' does not exist"))
+    assert.same(err, [[Cassandra returned error (0x2200): "Keyspace 'invalid_keyspace' does not exist"]])
   end)
 
   it("should be possible to use a namespace", function()
@@ -67,6 +67,14 @@ describe("cassandra", function()
         VALUES ('John O''Reilly', 42, 2644bada-852c-11e3-89fb-e0b9a54a6d93)
       ]])
       assert.truthy(ok)
+    end)
+
+    it("should be possible to set consistency level", function()
+      local ok, err = session:execute([[
+        INSERT INTO users (name, age, user_id)
+        VALUES ('John O''Reilly', 42, 2644bada-852c-11e3-89fb-e0b9a54a6d93)
+      ]], {}, cassandra.consistency.TWO)
+      assert.same(err, 'Cassandra returned error (0x1000): "Cannot achieve consistency level TWO"')
     end)
 
     it("should support queries with arguments", function()

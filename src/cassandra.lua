@@ -46,6 +46,7 @@ local consistency = {
     LOCAL_SERIAL=0x0009,
     LOCAL_ONE=0x000A
 }
+_M.consistency = consistency
 
 local result_kinds = {
     VOID=0x01,
@@ -354,7 +355,7 @@ local function read_frame(self)
         local error_code = read_int(body_buffer)
         local hex_error_code = string.format("%x", error_code)
         local error_message = read_string(body_buffer)
-        local err = 'Cassandra returned error (' .. hex_error_code .. '): "' .. error_message .. '"'
+        local err = 'Cassandra returned error (0x' .. hex_error_code .. '): "' .. error_message .. '"'
         return nil, err
     end
     return {
@@ -484,7 +485,11 @@ function _M.prepare(self, query)
     end
 end
 
-function _M.execute(self, query, args)
+function _M.execute(self, query, args, consistency_level)
+    if not consistency_level then
+        consistency_level = consistency.ONE
+    end
+
     local op_code, query_repr
     if type(query) == "string" then
         op_code = op_codes.QUERY
@@ -505,7 +510,7 @@ function _M.execute(self, query, args)
         end
     end
 
-    local query_parameters = short_representation(consistency.ONE) .. flags
+    local query_parameters = short_representation(consistency_level) .. flags
     body = query_repr .. query_parameters .. table.concat(values)
     local response, err = send_reply_and_get_response(self, op_code, body)
     if not response then
