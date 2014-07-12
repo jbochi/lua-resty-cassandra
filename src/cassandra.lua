@@ -56,26 +56,26 @@ local result_kinds = {
 }
 
 local types = {
-    custom=0,
-    ascii=1,
-    bigint=2,
-    blob=3,
-    boolean=4,
-    counter=5,
-    decimal=6,
-    double=7,
-    float=8,
-    int=9,
-    text=10,
-    timestamp=11,
-    uuid=12,
-    varchar=13,
-    varint=14,
-    timeuuid=15,
-    inet=16,
-    list=32,
-    map=33,
-    set=34
+    custom=0x00,
+    ascii=0x01,
+    bigint=0x02,
+    blob=0x03,
+    boolean=0x04,
+    counter=0x05,
+    decimal=0x06,
+    double=0x07,
+    float=0x08,
+    int=0x09,
+    text=0x0A,
+    timestamp=0x0B,
+    uuid=0x0C,
+    varchar=0x0D,
+    varint=0x0E,
+    timeuuid=0x0F,
+    inet=0x10,
+    list=0x20,
+    map=0x21,
+    set=0x22
 }
 
 local mt = { __index = _M }
