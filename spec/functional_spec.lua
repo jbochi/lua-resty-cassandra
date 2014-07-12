@@ -61,6 +61,17 @@ describe("cassandra", function()
       assert.same("lua_tests.users CREATED", table_created)
     end)
 
+    it("should not be possible to be created again", function()
+      table_created, err = session:execute([[
+          CREATE TABLE users (
+            user_id uuid PRIMARY KEY,
+            name varchar,
+            age int
+          )
+      ]])
+      assert.same(err, 'Cassandra returned error (0x2400): "Cannot add already existing column family "users" to keyspace "lua_tests""')
+    end)
+
     it("should be possible to insert a row", function()
       local ok, err = session:execute([[
         INSERT INTO users (name, age, user_id)
