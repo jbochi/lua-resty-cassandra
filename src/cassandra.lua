@@ -34,17 +34,17 @@ local op_codes = {
 }
 
 local consistency = {
-    ANY='\000\000',
-    ONE='\000\001',
-    TWO='\000\002',
-    THREE='\000\003',
-    QUORUM='\000\004',
-    ALL='\000\005',
-    LOCAL_QUORUM='\000\006',
-    EACH_QUORUM='\000\007',
-    SERIAL='\000\008',
-    LOCAL_SERIAL='\000\009',
-    LOCAL_ONE='\000\010'
+    ANY=0x0000,
+    ONE=0x0001,
+    TWO=0x0002,
+    THREE=0x0003,
+    QUORUM=0x0004,
+    ALL=0x0005,
+    LOCAL_QUORUM=0x0006,
+    EACH_QUORUM=0x0007,
+    SERIAL=0x0008,
+    LOCAL_SERIAL=0x0009,
+    LOCAL_ONE=0x000A
 }
 
 local result_kinds = {
@@ -498,7 +498,7 @@ function _M.execute(self, query, args)
         end
     end
 
-    local query_parameters = consistency.ONE .. flags
+    local query_parameters = short_representation(consistency.ONE) .. flags
     body = query_repr .. query_parameters .. table.concat(values)
     local response = send_reply_and_get_response(self, op_code, body)
 
