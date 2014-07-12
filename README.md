@@ -1,13 +1,13 @@
-[![Build Status](https://travis-ci.org/jbochi/lua-resty-cassandra.svg?branch=master)](https://travis-ci.org/jbochi/lua-resty-cassandra)
-
 lua-resty-cassandra
 ===================
 
-Cassandra client for Lua Nginx module using CQL binary protocol v2
+[![Build Status](https://travis-ci.org/jbochi/lua-resty-cassandra.svg?branch=master)](https://travis-ci.org/jbochi/lua-resty-cassandra)
 
-This is a work in progress and is definitly not ready for production use.
+Cassandra client for Lua Nginx module using CQL binary protocol v2.
 
-Only simple queries are working.
+This is a work in progress and is definitly not ready for production use, but 
+all important features work: prepare and execute queries with arguments of
+the basic types.
 
 API
 ---
