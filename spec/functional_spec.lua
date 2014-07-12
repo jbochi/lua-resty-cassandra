@@ -32,7 +32,7 @@ describe("cassandra", function()
   end)
 
   it("should catch errors", function()
-    local ok, err = pcall(session.set_keyspace, session, "invalid_keyspace")
+    local ok, err = session:set_keyspace("invalid_keyspace")
     assert.truthy(string.find(err, "Keyspace 'invalid_keyspace' does not exist"))
   end)
 

@@ -329,7 +329,7 @@ end
 local function read_frame(self)
     local header, err, partial = self.sock:receive(8)
     if not header then
-        error("Failed to read frame:" .. err)
+        return nil, "Failed to read frame header: " .. err
     end
     local header_buffer = create_buffer(header)
     local version = read_raw_byte(header_buffer)
@@ -341,7 +341,7 @@ local function read_frame(self)
     if length > 0 then
         body, err, partial = self.sock:receive(length)
         if not body then
-            error("Failed to read body:" .. err)
+            return nil, "Failed to read frame body: " .. err
         end
     else
         body = ""
@@ -354,7 +354,8 @@ local function read_frame(self)
         local error_code = read_int(body_buffer)
         local hex_error_code = string.format("%x", error_code)
         local error_message = read_string(body_buffer)
-        error('Cassandra returned error (' .. hex_error_code .. '): "' .. error_message .. '"')
+        local err = 'Cassandra returned error (' .. hex_error_code .. '): "' .. error_message .. '"'
+        return nil, err
     end
     return {
         flags=flags,
@@ -390,16 +391,19 @@ local function send_reply_and_get_response(self, op_code, body)
 
     local bytes, err = self.sock:send(frame)
     if not bytes then
-        error("Failed to send data to cassandra: " .. err)
+        return nil, "Failed to send data to cassandra: " .. err
     end
     return read_frame(self)
 end
 
 function _M.startup(self)
     local body = string_map_representation({["CQL_VERSION"]=CQL_VERSION})
-    local response = send_reply_and_get_response(self, op_codes.STARTUP, body)
+    local response, err = send_reply_and_get_response(self, op_codes.STARTUP, body)
+    if not response then
+        return nil, err
+    end
     if response.op_code ~= op_codes.READY then
-        error("Server is not ready")
+        return nil, "Server is not ready"
     end
     return true
 end
@@ -460,7 +464,10 @@ end
 
 function _M.prepare(self, query)
     local body = long_string_representation(query)
-    local response = send_reply_and_get_response(self, op_codes.PREPARE, body)
+    local response, err = send_reply_and_get_response(self, op_codes.PREPARE, body)
+    if not response then
+        return nil, err
+    end
     if response.op_code ~= op_codes.RESULT then
         error("Result expected")
     end
@@ -500,7 +507,10 @@ function _M.execute(self, query, args)
 
     local query_parameters = short_representation(consistency.ONE) .. flags
     body = query_repr .. query_parameters .. table.concat(values)
-    local response = send_reply_and_get_response(self, op_code, body)
+    local response, err = send_reply_and_get_response(self, op_code, body)
+    if not response then
+        return nil, err
+    end
 
     if response.op_code ~= op_codes.RESULT then
         error("Result expected")
