@@ -33,7 +33,7 @@ describe("cassandra", function()
 
   it("should catch errors", function()
     local ok, err = session:set_keyspace("invalid_keyspace")
-    assert.same(err, [[Cassandra returned error (0x2200): "Keyspace 'invalid_keyspace' does not exist"]])
+    assert.same(err, [[Cassandra returned error (Invalid): "Keyspace 'invalid_keyspace' does not exist"]])
   end)
 
   it("should be possible to use a namespace", function()
@@ -69,7 +69,7 @@ describe("cassandra", function()
             age int
           )
       ]])
-      assert.same(err, 'Cassandra returned error (0x2400): "Cannot add already existing column family "users" to keyspace "lua_tests""')
+      assert.same(err, 'Cassandra returned error (Already_exists): "Cannot add already existing column family "users" to keyspace "lua_tests""')
     end)
 
     it("should be possible to insert a row", function()
@@ -85,7 +85,7 @@ describe("cassandra", function()
         INSERT INTO users (name, age, user_id)
         VALUES ('John O''Reilly', 42, 2644bada-852c-11e3-89fb-e0b9a54a6d93)
       ]], {}, cassandra.consistency.TWO)
-      assert.same(err, 'Cassandra returned error (0x1000): "Cannot achieve consistency level TWO"')
+      assert.same(err, 'Cassandra returned error (Unavailable exception): "Cannot achieve consistency level TWO"')
     end)
 
     it("should support queries with arguments", function()

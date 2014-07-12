@@ -79,6 +79,24 @@ local types = {
     set=0x22
 }
 
+local error_codes = {
+    [0x0000]= "Server error",
+    [0x000A]= "Protocol error",
+    [0x0100]= "Bad credentials",
+    [0x1000]= "Unavailable exception",
+    [0x1001]= "Overloaded",
+    [0x1002]= "Is_bootstrapping",
+    [0x1003]= "Truncate_error",
+    [0x1100]= "Write_timeout",
+    [0x1200]= "Read_timeout",
+    [0x2000]= "Syntax_error",
+    [0x2100]= "Unauthorized",
+    [0x2200]= "Invalid",
+    [0x2300]= "Config_error",
+    [0x2400]= "Already_exists",
+    [0x2500]= "Unprepared"
+}
+
 local mt = { __index = _M }
 
 ---
@@ -328,10 +346,9 @@ local function read_value(buffer, type)
 end
 
 local function read_error(buffer)
-    local error_code = read_int(buffer)
-    local hex_error_code = string.format("%x", error_code)
+    local error_code = error_codes[read_int(buffer)]
     local error_message = read_string(buffer)
-    return 'Cassandra returned error (0x' .. hex_error_code .. '): "' .. error_message .. '"'
+    return 'Cassandra returned error (' .. error_code .. '): "' .. error_message .. '"'
 end
 
 local function read_frame(self)
