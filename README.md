@@ -5,7 +5,7 @@ lua-resty-cassandra
 
 Cassandra client for Lua Nginx module using CQL binary protocol v2.
 
-This is a work in progress and is definitly not ready for production use, but 
+This is a work in progress and is definitly not ready for production use, but
 all important features work: prepare and execute queries with arguments of
 the basic types.
 
@@ -29,13 +29,13 @@ local table_created, err = session:execute([[
 local ok, err = session:execute([[
   INSERT INTO users (name, age, user_id)
   VALUES (?, ?, ?)
-]], {"Juarez S' Bochi", 31, {type="uuid", value="1144bada-852c-11e3-89fb-e0b9a54a6d11"}})
+]], {"John O'Reilly", 42, {type="uuid", value="1144bada-852c-11e3-89fb-e0b9a54a6d11"}})
 local users, err = session:execute("SELECT name, age, user_id from users")
 assert(1 == #users)
 local user = users[1]
-ngx.say(user.name) -- "Juarez S' Bochi"
+ngx.say(user.name) -- "John O'Reilly"
 ngx.say(user.user_id) -- "1144bada-852c-11e3-89fb-e0b9a54a6d11"
-ngx.say(user.age) -- 31
+ngx.say(user.age) -- 42
 ```
 
 You can check more examples on the [tests](https://github.com/jbochi/lua-resty-cassandra/blob/master/spec/functional_spec.lua).

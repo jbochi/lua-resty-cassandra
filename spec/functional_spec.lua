@@ -92,19 +92,19 @@ describe("cassandra", function()
       local ok, err = session:execute([[
         INSERT INTO users (name, age, user_id)
         VALUES (?, ?, ?)
-      ]], {"Juarez S' Bochi", 31, {type="uuid", value="1144bada-852c-11e3-89fb-e0b9a54a6d11"}})
+      ]], {"John O'Reilly", 42, {type="uuid", value="2644bada-852c-11e3-89fb-e0b9a54a6d93"}})
       local users, err = session:execute("SELECT name, age, user_id from users")
       assert.same(1, #users)
       local user = users[1]
-      assert.same("Juarez S' Bochi", user.name)
-      assert.same("1144bada-852c-11e3-89fb-e0b9a54a6d11", user.user_id)
-      assert.same(31, user.age)
+      assert.same("John O'Reilly", user.name)
+      assert.same("2644bada-852c-11e3-89fb-e0b9a54a6d93", user.user_id)
+      assert.same(42, user.age)
       assert.truthy(ok)
     end)
   end)
 
   local types = {
-    {name='ascii', insert_value='juarez', read_value='juarez'},
+    {name='ascii', insert_value='string', read_value='string'},
     {name='bigint', insert_value={type='bigint', value=42000000000}, read_value=42000000000},
     -- todo: signed bigint,
     {name='blob', insert_value="\005\042", read_value="\005\042"},
@@ -117,11 +117,11 @@ describe("cassandra", function()
     -- todo: float,
     {name='int', insert_value=4200, read_value=4200},
     {name='int', insert_value=-42, read_value=-42},
-    {name='text', insert_value='juarez', read_value='juarez'},
+    {name='text', insert_value='string', read_value='string'},
     -- todo: timestamp,
     {name='uuid', insert_value={type='uuid', value="1144bada-852c-11e3-89fb-e0b9a54a6d11"}, read_value="1144bada-852c-11e3-89fb-e0b9a54a6d11"},
-    {name='varchar', insert_value='juarez', read_value='juarez'},
-    {name='blob', insert_value=string.rep("juarez", 10000), read_value=string.rep("juarez", 10000)},
+    {name='varchar', insert_value='string', read_value='string'},
+    {name='blob', insert_value=string.rep("string", 10000), read_value=string.rep("string", 10000)},
     -- todo: varint,
     -- todo: timeuuid,
     -- todo: inet,
