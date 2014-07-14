@@ -106,7 +106,8 @@ describe("cassandra", function()
   local types = {
     {name='ascii', insert_value='string', read_value='string'},
     {name='bigint', insert_value={type='bigint', value=42000000000}, read_value=42000000000},
-    -- todo: signed bigint,
+    -- {name='bigint', insert_value={type='bigint', value=-42000000000}, read_value=-42000000000},
+    -- {name='bigint', insert_value={type='bigint', value=-42}, read_value=-42},
     {name='blob', insert_value="\005\042", read_value="\005\042"},
     {name='blob', insert_value=string.rep("blob", 10000), read_value=string.rep("blob", 10000)},
     {name='boolean', insert_value=true, read_value=true},
@@ -114,7 +115,7 @@ describe("cassandra", function()
     -- counters are not here because they are used with UPDATE instead of INSERT
     -- todo: decimal,
     -- todo: double,
-    -- todo: float,
+    -- {name='float', insert_value=3.14151, read_value=3.14151},
     {name='int', insert_value=4200, read_value=4200},
     {name='int', insert_value=-42, read_value=-42},
     {name='text', insert_value='string', read_value='string'},
@@ -122,7 +123,8 @@ describe("cassandra", function()
     {name='uuid', insert_value={type='uuid', value="1144bada-852c-11e3-89fb-e0b9a54a6d11"}, read_value="1144bada-852c-11e3-89fb-e0b9a54a6d11"},
     {name='varchar', insert_value='string', read_value='string'},
     {name='blob', insert_value=string.rep("string", 10000), read_value=string.rep("string", 10000)},
-    -- todo: varint,
+    {name='varint', insert_value=4200, read_value=4200},
+    {name='varint', insert_value=-42, read_value=-42},
     -- todo: timeuuid,
     -- todo: inet,
     -- todo: list,

@@ -335,7 +335,10 @@ end
 
 local function read_value(buffer, type)
     bytes = read_bytes(buffer)
-    if type.id == types.int or type.id == types.bigint or type.id == types.counter then
+    if type.id == types.int or
+       type.id == types.bigint or
+       type.id == types.counter or
+       type.id == types.varint then
         return string_to_number(bytes, true)
     elseif type.id == types.boolean then
         return read_boolean(bytes)
