@@ -119,7 +119,7 @@ describe("cassandra", function()
     {name='int', insert_value=4200, read_value=4200},
     {name='int', insert_value=-42, read_value=-42},
     {name='text', insert_value='string', read_value='string'},
-    -- todo: timestamp,
+    {name='timestamp', insert_value={type='timestamp', value=1405356926}, read_value=1405356926},
     {name='uuid', insert_value={type='uuid', value="1144bada-852c-11e3-89fb-e0b9a54a6d11"}, read_value="1144bada-852c-11e3-89fb-e0b9a54a6d11"},
     {name='varchar', insert_value='string', read_value='string'},
     {name='blob', insert_value=string.rep("string", 10000), read_value=string.rep("string", 10000)},
@@ -144,10 +144,11 @@ describe("cassandra", function()
         ]])
       end)
       it("should be possible to insert and get value back", function()
-        session:execute([[
+        local ok, err = session:execute([[
           INSERT INTO type_test_table (key, value)
           VALUES (?, ?)
         ]], {"key", type.insert_value})
+        assert.same(nil, err)
         local rows, err = session:execute("SELECT value FROM type_test_table WHERE key = 'key'")
         assert.same(1, #rows)
         assert.same(type.read_value, rows[1].value)

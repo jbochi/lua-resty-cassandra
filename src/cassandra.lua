@@ -239,6 +239,8 @@ local function value_representation(value)
         representation = boolean_representation(value)
     elseif type(value) == 'table' and value.type == 'counter' then
         representation = big_endian_representation(value.value, 8)
+    elseif type(value) == 'table' and value.type == 'timestamp' then
+        representation = big_endian_representation(value.value, 8)
     elseif type(value) == 'table' and value.type == 'uuid' then
         representation = uuid_representation(value.value)
     else
@@ -338,7 +340,8 @@ local function read_value(buffer, type)
     if type.id == types.int or
        type.id == types.bigint or
        type.id == types.counter or
-       type.id == types.varint then
+       type.id == types.varint or
+       type.id == types.timestamp then
         return string_to_number(bytes, true)
     elseif type.id == types.boolean then
         return read_boolean(bytes)
