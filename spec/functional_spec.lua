@@ -163,7 +163,7 @@ describe("cassandra", function()
     before_each(function()
       session:set_keyspace("lua_tests")
       session:execute([[
-        CREATE TABLE type_test_table (
+        CREATE TABLE counter_test_table (
           key varchar PRIMARY KEY,
           value counter
         )
@@ -171,16 +171,16 @@ describe("cassandra", function()
     end)
     it("should be possible to increment and get value back", function()
       session:execute([[
-        UPDATE type_test_table
+        UPDATE counter_test_table
         SET value = value + ?
         WHERE key = ?
       ]], {{type="counter", value=10}, "key"})
-      local rows, err = session:execute("SELECT value FROM type_test_table WHERE key = 'key'")
+      local rows, err = session:execute("SELECT value FROM counter_test_table WHERE key = 'key'")
       assert.same(1, #rows)
       assert.same(10, rows[1].value)
     end)
     after_each(function()
-      session:execute("DROP TABLE type_test_table")
+      session:execute("DROP TABLE counter_test_table")
     end)
   end)
 end)
