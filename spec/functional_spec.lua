@@ -129,7 +129,7 @@ describe("cassandra", function()
     -- todo: inet,
     -- todo: list,
     -- todo: map,
-    -- todo: set
+    {name='set<text>', insert_value={type='set', value={'abc', 'def'}}, read_value={'abc', 'def'}}
   }
 
   for _, type in ipairs(types) do
