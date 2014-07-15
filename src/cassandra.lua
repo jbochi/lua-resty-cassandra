@@ -324,7 +324,7 @@ local function read_boolean(bytes)
 end
 
 local function read_uuid(bytes)
-    buffer = {}
+    local buffer = {}
     for i = 1, #bytes do
         buffer[i] = string.format("%02x", string.byte(bytes, i))
     end
@@ -336,7 +336,7 @@ local function read_uuid(bytes)
 end
 
 local function read_value(buffer, type)
-    bytes = read_bytes(buffer)
+    local bytes = read_bytes(buffer)
     if type.id == types.int or
        type.id == types.bigint or
        type.id == types.counter or
