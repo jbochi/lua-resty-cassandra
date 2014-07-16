@@ -229,12 +229,16 @@ local function boolean_representation(value)
     if value then return "\001" else return "\000" end
 end
 
-local function set_representation(elements)
+local function list_representation(elements)
     local buffer = {short_representation(#elements)}
     for _, value in ipairs(elements) do
         buffer[#buffer + 1] = short_bytes_representation(value)
     end
     return table.concat(buffer)
+end
+
+local function set_representation(elements)
+    return list_representation(elements)
 end
 
 local function value_representation(value)
@@ -251,6 +255,8 @@ local function value_representation(value)
         representation = big_endian_representation(value.value, 8)
     elseif type(value) == 'table' and value.type == 'uuid' then
         representation = uuid_representation(value.value)
+    elseif type(value) == 'table' and value.type == 'list' then
+        representation = list_representation(value.value)
     elseif type(value) == 'table' and value.type == 'set' then
         representation = set_representation(value.value)
     else
@@ -345,7 +351,7 @@ local function read_uuid(bytes)
     return table.concat(buffer)
 end
 
-local function read_set(buffer, type)
+local function read_list(buffer, type)
     local element_type = type.value
     local n = read_short(buffer)
     local elements = {}
@@ -354,6 +360,8 @@ local function read_set(buffer, type)
     end
     return elements
 end
+
+local read_set = read_list
 
 local function read_value(buffer, type)
     local bytes = read_bytes(buffer)
@@ -367,6 +375,8 @@ local function read_value(buffer, type)
         return read_boolean(bytes)
     elseif type.id == types.uuid then
         return read_uuid(bytes)
+    elseif type.id == types.list then
+        return read_list(create_buffer(bytes), type)
     elseif type.id == types.set then
         return read_set(create_buffer(bytes), type)
     end
