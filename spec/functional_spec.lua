@@ -128,7 +128,8 @@ describe("cassandra", function()
     -- todo: timeuuid,
     -- todo: inet,
     {name='list<text>', insert_value={type='list', value={'abc', 'def'}}, read_value={'abc', 'def'}},
-    -- todo: map,
+    {name='map<text,text>', insert_value={type='map', value={k1='v1', k2='v2'}}, read_value={k1='v1', k2='v2'}},
+    -- {name='map<text,text>', insert_value={type='map', value={}}, read_value={}},
     {name='set<text>', insert_value={type='set', value={'abc', 'def'}}, read_value={'abc', 'def'}}
   }
 

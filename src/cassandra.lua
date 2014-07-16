@@ -241,6 +241,18 @@ local function set_representation(elements)
     return list_representation(elements)
 end
 
+local function map_representation(map)
+    local buffer = {}
+    local size = 0
+    for key, value in pairs(map) do
+        buffer[#buffer + 1] = short_bytes_representation(key)
+        buffer[#buffer + 1] = short_bytes_representation(value)
+        size = size + 1
+    end
+    table.insert(buffer, 1, short_representation(size))
+    return table.concat(buffer)
+end
+
 local function value_representation(value)
     local representation = value
     if type(value) == 'number' then
@@ -257,6 +269,8 @@ local function value_representation(value)
         representation = uuid_representation(value.value)
     elseif type(value) == 'table' and value.type == 'list' then
         representation = list_representation(value.value)
+    elseif type(value) == 'table' and value.type == 'map' then
+        representation = map_representation(value.value)
     elseif type(value) == 'table' and value.type == 'set' then
         representation = set_representation(value.value)
     else
@@ -363,6 +377,18 @@ end
 
 local read_set = read_list
 
+local function read_map(buffer, type)
+    local element_type = type.value
+    local n = read_short(buffer)
+    local map = {}
+    for i = 1, n do
+        local key = read_short_bytes(buffer)
+        local value = read_short_bytes(buffer)
+        map[key] = value
+    end
+    return map
+end
+
 local function read_value(buffer, type)
     local bytes = read_bytes(buffer)
     if type.id == types.int or
@@ -379,6 +405,8 @@ local function read_value(buffer, type)
         return read_list(create_buffer(bytes), type)
     elseif type.id == types.set then
         return read_set(create_buffer(bytes), type)
+    elseif type.id == types.map then
+        return read_map(create_buffer(bytes), type)
     end
     return bytes
 end
