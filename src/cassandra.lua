@@ -232,7 +232,7 @@ end
 local function list_representation(elements)
     local buffer = {short_representation(#elements)}
     for _, value in ipairs(elements) do
-        buffer[#buffer + 1] = short_bytes_representation(value)
+        buffer[#buffer + 1] = _M._value_representation(value, true)
     end
     return table.concat(buffer)
 end
@@ -245,15 +245,15 @@ local function map_representation(map)
     local buffer = {}
     local size = 0
     for key, value in pairs(map) do
-        buffer[#buffer + 1] = short_bytes_representation(key)
-        buffer[#buffer + 1] = short_bytes_representation(value)
+        buffer[#buffer + 1] = _M._value_representation(key, true)
+        buffer[#buffer + 1] = _M._value_representation(value, true)
         size = size + 1
     end
     table.insert(buffer, 1, short_representation(size))
     return table.concat(buffer)
 end
 
-local function value_representation(value)
+local function value_representation(value, short)
     local representation = value
     if type(value) == 'number' then
         representation = int_representation(value)
@@ -276,8 +276,12 @@ local function value_representation(value)
     else
         representation = value
     end
+    if short then
+        return short_bytes_representation(representation)
+    end
     return bytes_representation(representation)
 end
+_M._value_representation = value_representation
 
 ---
 --- DECODE FUNCTIONS
@@ -370,7 +374,7 @@ local function read_list(buffer, type)
     local n = read_short(buffer)
     local elements = {}
     for i = 1, n do
-        elements[#elements + 1] = read_short_bytes(buffer)
+        elements[#elements + 1] = _M._read_value(buffer, element_type, true)
     end
     return elements
 end
@@ -382,15 +386,20 @@ local function read_map(buffer, type)
     local n = read_short(buffer)
     local map = {}
     for i = 1, n do
-        local key = read_short_bytes(buffer)
-        local value = read_short_bytes(buffer)
+        local key = _M._read_value(buffer, element_type, true)
+        local value = _M._read_value(buffer, element_type, true)
         map[key] = value
     end
     return map
 end
 
-local function read_value(buffer, type)
-    local bytes = read_bytes(buffer)
+local function read_value(buffer, type, short)
+    local bytes
+    if short then
+        bytes = read_short_bytes(buffer)
+    else
+        bytes = read_bytes(buffer)
+    end
     if type.id == types.int or
        type.id == types.bigint or
        type.id == types.counter or
@@ -410,6 +419,7 @@ local function read_value(buffer, type)
     end
     return bytes
 end
+_M._read_value = read_value
 
 local function read_error(buffer)
     local error_code = error_codes[read_int(buffer)]
