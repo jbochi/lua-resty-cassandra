@@ -231,8 +231,19 @@ end
 
 local function inet_representation(value)
     local digits = {}
-    for d in string.gfind(value, "(%d+)") do
-        table.insert(digits, string.char(d))
+    -- ipv6
+    for d in string.gfind(value, "([^:]+)") do
+        if #d == 4 then
+            for i = 1, #d, 2 do
+                digits[#digits + 1] = string.char(tonumber(string.sub(d, i, i + 1), 16))
+            end
+        end
+    end
+    -- ipv4
+    if #digits == 0 then
+        for d in string.gfind(value, "(%d+)") do
+            table.insert(digits, string.char(d))
+        end
     end
     return table.concat(digits)
 end
@@ -381,6 +392,14 @@ end
 
 local function read_inet(bytes)
     local buffer = {}
+    if #bytes == 16 then
+        -- ipv6
+        for i = 1, #bytes, 2 do
+            buffer[#buffer + 1] = string.format("%02x", string.byte(bytes, i)) ..
+                                  string.format("%02x", string.byte(bytes, i + 1))
+        end
+        return table.concat(buffer, ":")
+    end
     for i = 1, #bytes do
         buffer[#buffer + 1] = string.format("%d", string.byte(bytes, i))
     end

@@ -127,6 +127,7 @@ describe("cassandra", function()
     {name='varint', insert_value=-42, read_value=-42},
     -- todo: timeuuid,
     {name='inet', insert_value={type='inet', value="127.0.0.1"}, read_value="127.0.0.1"},
+    {name='inet', insert_value={type='inet', value="2001:0db8:85a3:0042:1000:8a2e:0370:7334"}, read_value="2001:0db8:85a3:0042:1000:8a2e:0370:7334"},
     {name='list<text>', insert_value={type='list', value={'abc', 'def'}}, read_value={'abc', 'def'}},
     {name='list<int>', insert_value={type='list', value={4, 2, 7}}, read_value={4, 2, 7}},
     {name='map<text,text>', insert_value={type='map', value={k1='v1', k2='v2'}}, read_value={k1='v1', k2='v2'}},
