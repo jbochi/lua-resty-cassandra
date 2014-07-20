@@ -115,7 +115,7 @@ describe("cassandra", function()
     -- counters are not here because they are used with UPDATE instead of INSERT
     -- todo: decimal,
     -- todo: double,
-    {name='float', insert_value=3.14151, read_test=function(value) return value - 3.14151 < 0.00001 end},
+    {name='float', insert_value=3.14151, read_test=function(value) return math.abs(value - 3.14151) < 0.0000001 end},
     {name='int', insert_value=4200, read_value=4200},
     {name='int', insert_value=-42, read_value=-42},
     {name='text', insert_value='string', read_value='string'},
