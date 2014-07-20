@@ -115,7 +115,7 @@ describe("cassandra", function()
     -- counters are not here because they are used with UPDATE instead of INSERT
     -- todo: decimal,
     -- todo: double,
-    -- {name='float', insert_value=3.14151, read_value=3.14151},
+    {name='float', insert_value=3.14151, read_test=function(value) return value - 3.14151 < 0.00001 end},
     {name='int', insert_value=4200, read_value=4200},
     {name='int', insert_value=-42, read_value=-42},
     {name='text', insert_value='string', read_value='string'},
@@ -154,7 +154,11 @@ describe("cassandra", function()
         assert.same(nil, err)
         local rows, err = session:execute("SELECT value FROM type_test_table WHERE key = 'key'")
         assert.same(1, #rows)
-        assert.same(type.read_value, rows[1].value)
+        if type.read_test then
+          assert.truthy(type.read_test(rows[1].value))
+        else
+          assert.same(type.read_value, rows[1].value)
+        end
       end)
       after_each(function()
         session:execute("DROP TABLE type_test_table")

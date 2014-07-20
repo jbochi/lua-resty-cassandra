@@ -229,6 +229,41 @@ local function boolean_representation(value)
     if value then return "\001" else return "\000" end
 end
 
+local function float_representation(number)
+    if number == 0 then
+        return string.char(0x00, 0x00, 0x00, 0x00)
+    elseif number ~= number then
+        return string.char(0xFF, 0xFF, 0xFF, 0xFF)
+    else
+        local sign = 0x00
+        if number < 0 then
+            sign = 0x80
+            number = -number
+        end
+        local mantissa, exponent = math.frexp(number)
+        exponent = exponent + 0x7F
+        if exponent <= 0 then
+            mantissa = math.ldexp(mantissa, exponent - 1)
+            exponent = 0
+        elseif exponent > 0 then
+            if exponent >= 0xFF then
+                return string.char(sign + 0x7F, 0x80, 0x00, 0x00)
+            elseif exponent == 1 then
+                exponent = 0
+            else
+                mantissa = mantissa * 2 - 1
+                exponent = exponent - 1
+            end
+        end
+        mantissa = math.floor(math.ldexp(mantissa, 23) + 0.5)
+        return string.char(
+                sign + math.floor(exponent / 2),
+                (exponent % 2) * 0x80 + math.floor(mantissa / 0x10000),
+                math.floor(mantissa / 0x100) % 0x100,
+                mantissa % 0x100)
+    end
+end
+
 local function inet_representation(value)
     local digits = {}
     -- ipv6
@@ -274,8 +309,12 @@ end
 
 local function value_representation(value, short)
     local representation = value
-    if type(value) == 'number' then
+    if type(value) == 'number' and math.floor(value) == value then
         representation = int_representation(value)
+    elseif type(value) == 'number' then
+        representation = float_representation(value)
+    elseif type(value) == 'table' and value.type == 'float' then
+        representation = float_representation(value.value)
     elseif type(value) == 'table' and value.type == 'bigint' then
         representation = big_endian_representation(value.value, 8)
     elseif type(value) == 'boolean' then
@@ -378,6 +417,28 @@ local function read_boolean(bytes)
     return string.byte(bytes) == 1
 end
 
+local function read_float(bytes)
+    local b1, b2, b3, b4 = string.byte(bytes, 1, 4)
+    local exponent = (b1 % 0x80) * 0x02 + math.floor(b2 / 0x80)
+    local mantissa = math.ldexp(((b2 % 0x80) * 0x100 + b3) * 0x100 + b4, -23)
+    if exponent == 0xFF then
+        if mantissa > 0 then
+            return 0 / 0
+        else
+            mantissa = math.huge
+            exponent = 0x7F
+        end
+    elseif exponent > 0 then
+        mantissa = mantissa + 1
+    else
+        exponent = exponent + 1
+    end
+    if b1 >= 0x80 then
+        mantissa = -mantissa
+    end
+    return math.ldexp(mantissa, exponent - 0x7F)
+end
+
 local function read_uuid(bytes)
     local buffer = {}
     for i = 1, #bytes do
@@ -445,6 +506,8 @@ local function read_value(buffer, type, short)
         return string_to_number(bytes, true)
     elseif type.id == types.boolean then
         return read_boolean(bytes)
+    elseif type.id == types.float then
+        return read_float(bytes)
     elseif type.id == types.uuid then
         return read_uuid(bytes)
     elseif type.id == types.inet then
