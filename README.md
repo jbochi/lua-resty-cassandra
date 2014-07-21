@@ -12,6 +12,7 @@ the basic types.
 API
 ---
 ```lua
+cassandra = require("cassandra")
 session = cassandra.new()
 session:set_timeout(1000)
 connected, err = session:connect("127.0.0.1", 9042)
