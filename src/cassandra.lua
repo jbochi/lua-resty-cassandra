@@ -79,6 +79,12 @@ local types = {
     set=0x22
 }
 
+for key, value in pairs(types) do
+    _M[key] = function(value)
+        return {type=key, value=value}
+    end
+end
+
 local error_codes = {
     [0x0000]= "Server error",
     [0x000A]= "Protocol error",

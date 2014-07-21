@@ -29,7 +29,7 @@ local table_created, err = session:execute([[
 local ok, err = session:execute([[
   INSERT INTO users (name, age, user_id)
   VALUES (?, ?, ?)
-]], {"John O'Reilly", 42, {type="uuid", value="1144bada-852c-11e3-89fb-e0b9a54a6d11"}})
+]], {"John O'Reilly", 42, cassandra.uuid("1144bada-852c-11e3-89fb-e0b9a54a6d11")})
 local users, err = session:execute("SELECT name, age, user_id from users")
 assert(1 == #users)
 local user = users[1]
