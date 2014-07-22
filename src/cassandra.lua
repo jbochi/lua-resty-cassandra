@@ -338,7 +338,7 @@ local packers = {
     [types.uuid]=uuid_representation,
     [types.varchar]=identity_representation,
     [types.varint]=int_representation,
-    -- timeuuid=0x0F,
+    [types.timeuuid]=uuid_representation,
     [types.inet]=inet_representation,
     [types.list]=list_representation,
     [types.map]=map_representation,
@@ -537,7 +537,7 @@ local function read_value(buffer, type, short)
         return read_boolean(bytes)
     elseif type.id == types.float then
         return read_float(bytes)
-    elseif type.id == types.uuid then
+    elseif type.id == types.uuid or type.id == types.timeuuid then
         return read_uuid(bytes)
     elseif type.id == types.inet then
         return read_inet(bytes)

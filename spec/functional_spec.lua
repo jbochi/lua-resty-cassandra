@@ -129,7 +129,7 @@ describe("cassandra", function()
     {name='blob', insert_value=string.rep("string", 10000), read_value=string.rep("string", 10000)},
     {name='varint', insert_value=4200, read_value=4200},
     {name='varint', insert_value=-42, read_value=-42},
-    -- todo: timeuuid,
+    {name='timeuuid', insert_value=cassandra.uuid("1144bada-852c-11e3-89fb-e0b9a54a6d11"), read_value="1144bada-852c-11e3-89fb-e0b9a54a6d11"},
     {name='inet', insert_value=cassandra.inet("127.0.0.1"), read_value="127.0.0.1"},
     {name='inet', insert_value=cassandra.inet("2001:0db8:85a3:0042:1000:8a2e:0370:7334"), read_value="2001:0db8:85a3:0042:1000:8a2e:0370:7334"},
     {name='list<text>', insert_value=cassandra.list({'abc', 'def'}), read_value={'abc', 'def'}},
