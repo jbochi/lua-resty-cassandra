@@ -80,6 +80,14 @@ describe("cassandra", function()
       assert.truthy(ok)
     end)
 
+    it("should be possible to insert a row", function()
+      local ok, err = session:execute([[
+        INSERT INTO users (name, age, user_id)
+        VALUES ('John O''Reilly', 42, 2644bada-852c-11e3-89fb-e0b9a54a6d93)
+      ]])
+      assert.truthy(ok)
+    end)
+
     it("should be possible to set consistency level", function()
       local ok, err = session:execute([[
         INSERT INTO users (name, age, user_id)
@@ -105,6 +113,7 @@ describe("cassandra", function()
 
   local types = {
     {name='ascii', insert_value='string', read_value='string'},
+    {name='ascii', insert_value=cassandra.null, read_value=nil},
     {name='bigint', insert_value=cassandra.bigint(42000000000), read_value=42000000000},
     -- {name='bigint', insert_value=cassandra.bigint(-42000000000), read_value=-42000000000},
     -- {name='bigint', insert_value=cassandra.bigint(-42), read_value=-42},
@@ -135,7 +144,7 @@ describe("cassandra", function()
     {name='list<text>', insert_value=cassandra.list({'abc', 'def'}), read_value={'abc', 'def'}},
     {name='list<int>', insert_value=cassandra.list({4, 2, 7}), read_value={4, 2, 7}},
     {name='map<text,text>', insert_value=cassandra.map({k1='v1', k2='v2'}), read_value={k1='v1', k2='v2'}},
-    -- {name='map<text,text>', insert_value=cassandra.map({}), read_value={}},
+    {name='map<text,text>', insert_value=cassandra.map({}), read_value=nil},
     {name='set<text>', insert_value=cassandra.set({'abc', 'def'}), read_value={'abc', 'def'}}
   }
 

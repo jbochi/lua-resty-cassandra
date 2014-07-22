@@ -85,6 +85,7 @@ for key, value in pairs(types) do
         return {type=key, value=value}
     end
 end
+_M.null = {type="null", value=nil}
 
 local error_codes = {
     [0x0000]= "Server error",
@@ -352,6 +353,8 @@ local function infer_type(value)
         return types.float
     elseif type(value) == 'boolean' then
         return types.boolean
+    elseif type(value) == 'table' and value.type == 'null' then
+        return _M.null
     elseif type(value) == 'table' and value.type then
         return types[value.type]
     else
@@ -363,6 +366,13 @@ local function value_representation(value, short)
     local infered_type = infer_type(value)
     if type(value) == 'table' and value.type and value.value then
         value = value.value
+    end
+    if infered_type == _M.null then
+        if short then
+            return short_representation(-1)
+        else
+            return int_representation(-1)
+        end
     end
     local representation = packers[infered_type](value)
     if short then
@@ -418,7 +428,10 @@ local function read_string(buffer)
 end
 
 local function read_bytes(buffer)
-    local size = read_int(buffer)
+    local size = read_int(buffer, true)
+    if size < 0 then
+        return nil
+    end
     return read_raw_bytes(buffer, size)
 end
 
@@ -526,6 +539,9 @@ local function read_value(buffer, type, short)
         bytes = read_short_bytes(buffer)
     else
         bytes = read_bytes(buffer)
+    end
+    if bytes == nil then
+        return nil
     end
     if type.id == types.int or
        type.id == types.bigint or
