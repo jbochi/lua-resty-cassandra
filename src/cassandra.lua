@@ -79,6 +79,7 @@ local types = {
     set=0x22
 }
 
+-- create function for type annotation
 for key, value in pairs(types) do
     _M[key] = function(value)
         return {type=key, value=value}
@@ -313,32 +314,51 @@ local function map_representation(map)
     return table.concat(buffer)
 end
 
+local function infer_type(value)
+    if type(value) == 'number' and math.floor(value) == value then
+        return types.int
+    elseif type(value) == 'number' then
+        return types.float
+    elseif type(value) == 'boolean' then
+        return types.boolean
+    elseif type(value) == 'table' and value.type then
+        return types[value.type]
+    else
+        return types.varchar
+    end
+end
+
 local function value_representation(value, short)
     local representation = value
-    if type(value) == 'number' and math.floor(value) == value then
+    local infered_type = infer_type(value)
+    if type(value) == 'table' and value.type and value.value then
+        value = value.value
+    end
+
+    if infered_type == types.int then
         representation = int_representation(value)
-    elseif type(value) == 'number' then
+    elseif infered_type == types.float then
         representation = float_representation(value)
-    elseif type(value) == 'table' and value.type == 'float' then
-        representation = float_representation(value.value)
-    elseif type(value) == 'table' and value.type == 'bigint' then
-        representation = big_endian_representation(value.value, 8)
+    elseif infered_type == types.float then
+        representation = float_representation(value)
+    elseif infered_type == types.bigint then
+        representation = big_endian_representation(value, 8)
     elseif type(value) == 'boolean' then
         representation = boolean_representation(value)
-    elseif type(value) == 'table' and value.type == 'counter' then
-        representation = big_endian_representation(value.value, 8)
-    elseif type(value) == 'table' and value.type == 'timestamp' then
-        representation = big_endian_representation(value.value, 8)
-    elseif type(value) == 'table' and value.type == 'uuid' then
-        representation = uuid_representation(value.value)
-    elseif type(value) == 'table' and value.type == 'inet' then
-        representation = inet_representation(value.value)
-    elseif type(value) == 'table' and value.type == 'list' then
-        representation = list_representation(value.value)
-    elseif type(value) == 'table' and value.type == 'map' then
-        representation = map_representation(value.value)
-    elseif type(value) == 'table' and value.type == 'set' then
-        representation = set_representation(value.value)
+    elseif infered_type == types.counter then
+        representation = big_endian_representation(value, 8)
+    elseif infered_type == types.timestamp then
+        representation = big_endian_representation(value, 8)
+    elseif infered_type == types.uuid then
+        representation = uuid_representation(value)
+    elseif infered_type == types.inet then
+        representation = inet_representation(value)
+    elseif infered_type == types.list then
+        representation = list_representation(value)
+    elseif infered_type == types.map then
+        representation = map_representation(value)
+    elseif infered_type == types.set then
+        representation = set_representation(value)
     else
         representation = value
     end
