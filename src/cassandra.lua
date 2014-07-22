@@ -195,6 +195,10 @@ local function short_representation(num)
     return big_endian_representation(num, 2)
 end
 
+local function bigint_representation(value)
+    return big_endian_representation(value, 8)
+end
+
 local function uuid_representation(value)
     local str = string.gsub(value, "-", "")
     local buffer = {}
@@ -314,6 +318,33 @@ local function map_representation(map)
     return table.concat(buffer)
 end
 
+local function identity_representation(value)
+    return value
+end
+
+local packers = {
+    -- custom=0x00,
+    [types.ascii]=identity_representation,
+    [types.bigint]=bigint_representation,
+    [types.blob]=identity_representation,
+    [types.boolean]=boolean_representation,
+    [types.counter]=bigint_representation,
+    -- decimal=0x06,
+    -- double=0x07,
+    [types.float]=float_representation,
+    [types.int]=int_representation,
+    [types.text]=identity_representation,
+    [types.timestamp]=bigint_representation,
+    [types.uuid]=uuid_representation,
+    [types.varchar]=identity_representation,
+    [types.varint]=int_representation,
+    -- timeuuid=0x0F,
+    [types.inet]=inet_representation,
+    [types.list]=list_representation,
+    [types.map]=map_representation,
+    [types.set]=set_representation
+}
+
 local function infer_type(value)
     if type(value) == 'number' and math.floor(value) == value then
         return types.int
@@ -329,39 +360,11 @@ local function infer_type(value)
 end
 
 local function value_representation(value, short)
-    local representation = value
     local infered_type = infer_type(value)
     if type(value) == 'table' and value.type and value.value then
         value = value.value
     end
-
-    if infered_type == types.int then
-        representation = int_representation(value)
-    elseif infered_type == types.float then
-        representation = float_representation(value)
-    elseif infered_type == types.float then
-        representation = float_representation(value)
-    elseif infered_type == types.bigint then
-        representation = big_endian_representation(value, 8)
-    elseif type(value) == 'boolean' then
-        representation = boolean_representation(value)
-    elseif infered_type == types.counter then
-        representation = big_endian_representation(value, 8)
-    elseif infered_type == types.timestamp then
-        representation = big_endian_representation(value, 8)
-    elseif infered_type == types.uuid then
-        representation = uuid_representation(value)
-    elseif infered_type == types.inet then
-        representation = inet_representation(value)
-    elseif infered_type == types.list then
-        representation = list_representation(value)
-    elseif infered_type == types.map then
-        representation = map_representation(value)
-    elseif infered_type == types.set then
-        representation = set_representation(value)
-    else
-        representation = value
-    end
+    local representation = packers[infered_type](value)
     if short then
         return short_bytes_representation(representation)
     end
