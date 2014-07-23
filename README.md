@@ -5,10 +5,6 @@ lua-resty-cassandra
 
 Cassandra client for Lua Nginx module using CQL binary protocol v2.
 
-This is a work in progress and is definitly not ready for production use, but
-all important features work: prepare and execute queries with arguments of
-the basic types.
-
 API
 ---
 ```lua
