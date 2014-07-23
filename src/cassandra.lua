@@ -241,6 +241,38 @@ local function boolean_representation(value)
     if value then return "\001" else return "\000" end
 end
 
+-- 'inspired' by https://github.com/fperrad/lua-MessagePack/blob/master/src/MessagePack.lua
+local function double_representation(number)
+    local sign = 0
+    if number < 0.0 then
+        sign = 0x80
+        number = -number
+    end
+    local mantissa, exponent = math.frexp(number)
+    if mantissa ~= mantissa then
+        return string.char(0xFF, 0xF8, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00) -- nan
+    elseif mantissa == math.huge then
+      if sign == 0 then
+          return string.char(0x7F, 0xF0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00) -- +inf
+      else
+          return string.char(0xFF, 0xF0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00) -- -inf
+      end
+    elseif mantissa == 0.0 and exponent == 0 then
+        return string.char(sign, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00) -- zero
+    else
+        exponent = exponent + 0x3FE
+        mantissa = (mantissa * 2.0 - 1.0) * math.ldexp(0.5, 53)
+        return string.char(sign + math.floor(exponent / 0x10),
+              (exponent % 0x10) * 0x10 + math.floor(mantissa / 0x1000000000000),
+              math.floor(mantissa / 0x10000000000) % 0x100,
+              math.floor(mantissa / 0x100000000) % 0x100,
+              math.floor(mantissa / 0x1000000) % 0x100,
+              math.floor(mantissa / 0x10000) % 0x100,
+              math.floor(mantissa / 0x100) % 0x100,
+              mantissa % 0x100)
+    end
+end
+
 local function float_representation(number)
     if number == 0 then
         return string.char(0x00, 0x00, 0x00, 0x00)
@@ -331,7 +363,7 @@ local packers = {
     [types.boolean]=boolean_representation,
     [types.counter]=bigint_representation,
     -- decimal=0x06,
-    -- double=0x07,
+    [types.double]=double_representation,
     [types.float]=float_representation,
     [types.int]=int_representation,
     [types.text]=identity_representation,
@@ -463,6 +495,31 @@ local function read_boolean(bytes)
     return string.byte(bytes) == 1
 end
 
+local function read_double(bytes)
+    local b1, b2, b3, b4, b5, b6, b7, b8 = string.byte(bytes, 1, 8)
+    local sign = b1 > 0x7F
+    local exponent = (b1 % 0x80) * 0x10 + math.floor(b2 / 0x10)
+    local mantissa = ((((((b2 % 0x10) * 0x100 + b3) * 0x100 + b4) * 0x100 + b5) * 0x100 + b6) * 0x100 + b7) * 0x100 + b8
+    if sign then
+        sign = -1
+    else
+        sign = 1
+    end
+    local number
+    if mantissa == 0 and exponent == 0 then
+        number = sign * 0.0
+    elseif exponent == 0x7FF then
+        if mantissa == 0 then
+            number = sign * math.huge
+        else
+            number = 0.0/0.0
+        end
+    else
+        number = sign * math.ldexp(1.0 + mantissa / 0x10000000000000, exponent - 0x3FF)
+    end
+    return number
+end
+
 local function read_float(bytes)
     local b1, b2, b3, b4 = string.byte(bytes, 1, 4)
     local exponent = (b1 % 0x80) * 0x02 + math.floor(b2 / 0x80)
@@ -548,7 +605,7 @@ local unpackers = {
     [types.boolean]=read_boolean,
     [types.counter]=read_signed_number,
     -- decimal=0x06,
-    -- double=0x07,
+    [types.double]=read_double,
     [types.float]=read_float,
     [types.int]=read_signed_number,
     [types.text]=identity_representation,
