@@ -123,7 +123,10 @@ describe("cassandra", function()
     {name='boolean', insert_value=false, read_value=false},
     -- counters are not here because they are used with UPDATE instead of INSERT
     -- todo: decimal,
-    -- todo: double,
+    {name='double', insert_value=cassandra.double(1.0000000000000004), read_test=function(value) return math.abs(value - 1.0000000000000004) < 0.000000000000001 end},
+    {name='double', insert_value=cassandra.double(-1.0000000000000004), read_value=-1.0000000000000004},
+    {name='double', insert_value=cassandra.double(0), read_test=function(value) return math.abs(value - 0) < 0.000000000000001 end},
+    {name='double', insert_value=cassandra.double(314151), read_test=function(value) return math.abs(value - 314151) < 0.000000000000001 end},
     {name='float', insert_value=3.14151, read_test=function(value) return math.abs(value - 3.14151) < 0.0000001 end},
     {name='float', insert_value=cassandra.float(3.14151), read_test=function(value) return math.abs(value - 3.14151) < 0.0000001 end},
     {name='float', insert_value=cassandra.float(0), read_test=function(value) return math.abs(value - 0) < 0.0000001 end},
