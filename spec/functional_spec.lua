@@ -7,7 +7,7 @@ describe("cassandra", function()
     session = cassandra.new()
     session:set_timeout(1000)
     connected, err = session:connect("127.0.0.1", 9042)
-    local res, err = pcall(session.execute, session, [[
+    local res, err = session:execute([[
       CREATE KEYSPACE lua_tests
       WITH REPLICATION = { 'class' : 'SimpleStrategy', 'replication_factor' : 3 }
     ]])
