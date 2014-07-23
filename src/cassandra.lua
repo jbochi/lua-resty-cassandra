@@ -386,6 +386,10 @@ _M._value_representation = value_representation
 --- DECODE FUNCTIONS
 ---
 
+local function create_buffer(str)
+    return {str=str, pos=1}
+end
+
 local function string_to_number(str, signed)
     local number = 0
     local exponent = 1
@@ -400,8 +404,8 @@ local function string_to_number(str, signed)
     return number
 end
 
-local function create_buffer(str)
-    return {str=str, pos=1}
+local function read_signed_number(bytes)
+    return string_to_number(bytes, true)
 end
 
 local function read_raw_bytes(buffer, n_bytes)
@@ -509,8 +513,9 @@ local function read_inet(bytes)
     return table.concat(buffer, ".")
 end
 
-local function read_list(buffer, type)
+local function read_list(bytes, type)
     local element_type = type.value
+    local buffer = create_buffer(bytes)
     local n = read_short(buffer)
     local elements = {}
     for i = 1, n do
@@ -521,17 +526,43 @@ end
 
 local read_set = read_list
 
-local function read_map(buffer, type)
-    local element_type = type.value
+local function read_map(bytes, type)
+    local key_type = type.value[1]
+    local value_type = type.value[2]
+    local buffer = create_buffer(bytes)
     local n = read_short(buffer)
     local map = {}
     for i = 1, n do
-        local key = _M._read_value(buffer, element_type, true)
-        local value = _M._read_value(buffer, element_type, true)
+        local key = _M._read_value(buffer, key_type, true)
+        local value = _M._read_value(buffer, value_type, true)
         map[key] = value
     end
     return map
 end
+
+local unpackers = {
+    -- custom=0x00,
+    [types.ascii]=identity_representation,
+    [types.bigint]=read_signed_number,
+    [types.blob]=identity_representation,
+    [types.boolean]=read_boolean,
+    [types.counter]=read_signed_number,
+    -- decimal=0x06,
+    -- double=0x07,
+    [types.float]=read_float,
+    [types.int]=read_signed_number,
+    [types.text]=identity_representation,
+    [types.timestamp]=read_signed_number,
+    [types.uuid]=read_uuid,
+    [types.varchar]=identity_representation,
+    [types.varint]=read_signed_number,
+    [types.timeuuid]=read_uuid,
+    [types.inet]=read_inet,
+    [types.list]=read_list,
+    [types.map]=read_map,
+    [types.set]=read_set
+}
+
 
 local function read_value(buffer, type, short)
     local bytes
@@ -543,28 +574,7 @@ local function read_value(buffer, type, short)
     if bytes == nil then
         return nil
     end
-    if type.id == types.int or
-       type.id == types.bigint or
-       type.id == types.counter or
-       type.id == types.varint or
-       type.id == types.timestamp then
-        return string_to_number(bytes, true)
-    elseif type.id == types.boolean then
-        return read_boolean(bytes)
-    elseif type.id == types.float then
-        return read_float(bytes)
-    elseif type.id == types.uuid or type.id == types.timeuuid then
-        return read_uuid(bytes)
-    elseif type.id == types.inet then
-        return read_inet(bytes)
-    elseif type.id == types.list then
-        return read_list(create_buffer(bytes), type)
-    elseif type.id == types.set then
-        return read_set(create_buffer(bytes), type)
-    elseif type.id == types.map then
-        return read_map(create_buffer(bytes), type)
-    end
-    return bytes
+    return unpackers[type.id](bytes, type)
 end
 _M._read_value = read_value
 

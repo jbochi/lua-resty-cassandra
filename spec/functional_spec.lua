@@ -144,6 +144,7 @@ describe("cassandra", function()
     {name='list<text>', insert_value=cassandra.list({'abc', 'def'}), read_value={'abc', 'def'}},
     {name='list<int>', insert_value=cassandra.list({4, 2, 7}), read_value={4, 2, 7}},
     {name='map<text,text>', insert_value=cassandra.map({k1='v1', k2='v2'}), read_value={k1='v1', k2='v2'}},
+    {name='map<text,int>', insert_value=cassandra.map({k1=3, k2=4}), read_value={k1=3, k2=4}},
     {name='map<text,text>', insert_value=cassandra.map({}), read_value=nil},
     {name='set<text>', insert_value=cassandra.set({'abc', 'def'}), read_value={'abc', 'def'}}
   }
