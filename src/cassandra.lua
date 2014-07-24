@@ -176,13 +176,13 @@ _M.close = close
 local function big_endian_representation(num, bytes)
     if num < 0 then
         -- 2's complement
-        num = math.pow(256, bytes) + num
+        num = math.pow(0x100, bytes) + num
     end
     local t = {}
     while num > 0 do
-        local rest = math.fmod(num, 256)
+        local rest = math.fmod(num, 0x100)
         table.insert(t, 1, string.char(rest))
-        num = (num-rest) / 256
+        num = (num-rest) / 0x100
     end
     local padding = string.rep(string.char(0), bytes - #t)
     return padding .. table.concat(t)
@@ -196,8 +196,26 @@ local function short_representation(num)
     return big_endian_representation(num, 2)
 end
 
-local function bigint_representation(value)
-    return big_endian_representation(value, 8)
+local function bigint_representation(n)
+    if n >= 0 then
+        return string.char(0,         -- only 53 bits from double
+                           math.floor(n / 0x1000000000000) % 0x100,
+                           math.floor(n / 0x10000000000) % 0x100,
+                           math.floor(n / 0x100000000) % 0x100,
+                           math.floor(n / 0x1000000) % 0x100,
+                           math.floor(n / 0x10000) % 0x100,
+                           math.floor(n / 0x100) % 0x100,
+                           n % 0x100)
+    else
+        return string.char(0xFF,      -- only 53 bits from double
+                           math.floor(n / 0x1000000000000) % 0x100,
+                           math.floor(n / 0x10000000000) % 0x100,
+                           math.floor(n / 0x100000000) % 0x100,
+                           math.floor(n / 0x1000000) % 0x100,
+                           math.floor(n / 0x10000) % 0x100,
+                           math.floor(n / 0x100) % 0x100,
+                           n % 0x100)
+    end
 end
 
 local function uuid_representation(value)
@@ -495,6 +513,15 @@ local function read_boolean(bytes)
     return string.byte(bytes) == 1
 end
 
+local function read_bigint(bytes)
+    local b1, b2, b3, b4, b5, b6, b7, b8 = string.byte(bytes, 1, 8)
+    if b1 < 0x80 then
+        return ((((((b1 * 0x100 + b2) * 0x100 + b3) * 0x100 + b4) * 0x100 + b5) * 0x100 + b6) * 0x100 + b7) * 0x100 + b8
+    else
+        return ((((((((b1 - 0xFF) * 0x100 + (b2 - 0xFF)) * 0x100 + (b3 - 0xFF)) * 0x100 + (b4 - 0xFF)) * 0x100 + (b5 - 0xFF)) * 0x100 + (b6 - 0xFF)) * 0x100 + (b7 - 0xFF)) * 0x100 + (b8 - 0xFF)) - 1
+    end
+end
+
 local function read_double(bytes)
     local b1, b2, b3, b4, b5, b6, b7, b8 = string.byte(bytes, 1, 8)
     local sign = b1 > 0x7F
@@ -600,16 +627,16 @@ end
 local unpackers = {
     -- custom=0x00,
     [types.ascii]=identity_representation,
-    [types.bigint]=read_signed_number,
+    [types.bigint]=read_bigint,
     [types.blob]=identity_representation,
     [types.boolean]=read_boolean,
-    [types.counter]=read_signed_number,
+    [types.counter]=read_bigint,
     -- decimal=0x06,
     [types.double]=read_double,
     [types.float]=read_float,
     [types.int]=read_signed_number,
     [types.text]=identity_representation,
-    [types.timestamp]=read_signed_number,
+    [types.timestamp]=read_bigint,
     [types.uuid]=read_uuid,
     [types.varchar]=identity_representation,
     [types.varint]=read_signed_number,

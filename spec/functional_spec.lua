@@ -115,8 +115,8 @@ describe("cassandra", function()
     {name='ascii', insert_value='string', read_value='string'},
     {name='ascii', insert_value=cassandra.null, read_value=nil},
     {name='bigint', insert_value=cassandra.bigint(42000000000), read_value=42000000000},
-    -- {name='bigint', insert_value=cassandra.bigint(-42000000000), read_value=-42000000000},
-    -- {name='bigint', insert_value=cassandra.bigint(-42), read_value=-42},
+    {name='bigint', insert_value=cassandra.bigint(-42000000000), read_value=-42000000000},
+    {name='bigint', insert_value=cassandra.bigint(-42), read_value=-42},
     {name='blob', insert_value="\005\042", read_value="\005\042"},
     {name='blob', insert_value=string.rep("blob", 10000), read_value=string.rep("blob", 10000)},
     {name='boolean', insert_value=true, read_value=true},
@@ -202,6 +202,16 @@ describe("cassandra", function()
       local rows, err = session:execute("SELECT value FROM counter_test_table WHERE key = 'key'")
       assert.same(1, #rows)
       assert.same(10, rows[1].value)
+    end)
+    it("should be possible to decrement and get value back", function()
+      session:execute([[
+        UPDATE counter_test_table
+        SET value = value + ?
+        WHERE key = ?
+      ]], {{type="counter", value=-10}, "key"})
+      local rows, err = session:execute("SELECT value FROM counter_test_table WHERE key = 'key'")
+      assert.same(1, #rows)
+      assert.same(-10, rows[1].value)
     end)
     after_each(function()
       session:execute("DROP TABLE counter_test_table")
