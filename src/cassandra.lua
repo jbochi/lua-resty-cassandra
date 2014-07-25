@@ -128,12 +128,13 @@ function _M.set_timeout(self, timeout)
     return sock:settimeout(timeout)
 end
 
-function _M.connect(self, ...)
+function _M.connect(self, host, port)
+    if port == nil then port = 9042 end
     local sock = self.sock
     if not sock then
         return nil, "not initialized"
     end
-    local ok, err = sock:connect(...)
+    local ok, err = sock:connect(host, port)
     if not ok then
         return false, err
     end

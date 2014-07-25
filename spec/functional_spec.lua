@@ -17,6 +17,13 @@ describe("cassandra", function()
     assert.truthy(connected)
   end)
 
+  it("should not require port for connection", function()
+    local new_session = cassandra.new()
+    new_session:set_timeout(1000)
+    local connected, err = new_session:connect("127.0.0.1")
+    assert.truthy(connected)
+  end)
+
   it("should be queryable", function()
     local rows, err = session:execute("SELECT cql_version, native_protocol_version, release_version FROM system.local");
     assert.same(1, #rows)
