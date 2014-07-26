@@ -1,7 +1,14 @@
 -- Implementation of CQL Binary protocol V2 available at https://git-wip-us.apache.org/repos/asf?p=cassandra.git;a=blob_plain;f=doc/native_protocol_v2.spec;hb=HEAD
 
-local tcp = ngx.socket.tcp
-
+local tcp
+if ngx then
+    -- openresty
+    tcp = ngx.socket.tcp
+else
+    -- fallback to luasocket
+    local socket = require("socket")
+    tcp = socket.tcp
+end
 
 local _M = {}
 
