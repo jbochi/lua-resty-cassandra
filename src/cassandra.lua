@@ -137,6 +137,10 @@ end
 
 function _M.connect(self, host, port)
     if port == nil then port = 9042 end
+    if type(host) == 'table' then
+        -- if host is a list, choose a random item
+        host = host[math.random(#host)]
+    end
     local sock = self.sock
     if not sock then
         return nil, "not initialized"
