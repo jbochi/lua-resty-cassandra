@@ -156,8 +156,10 @@ function _M.set_keepalive(self, ...)
     local sock = self.sock
     if not sock then
         return nil, "not initialized"
+    elseif sock.setkeepalive then
+        return sock:setkeepalive(...)
     end
-    return sock:setkeepalive(...)
+    return nil, "luasocket does not support reusable sockets"
 end
 
 
@@ -165,9 +167,10 @@ function _M.get_reused_times(self)
     local sock = self.sock
     if not sock then
         return nil, "not initialized"
+    elseif sock.getreusedtimes then
+        return sock:getreusedtimes()
     end
-
-    return sock:getreusedtimes()
+    return nil, "luasocket does not support reusable sockets"
 end
 
 
