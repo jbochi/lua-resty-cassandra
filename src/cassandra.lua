@@ -149,7 +149,12 @@ function _M.connect(self, host, port)
     if not ok then
         return false, err
     end
-    return self:startup()
+    if not self.initialized then
+        --todo: not tested
+        self:startup()
+        self.initialized = true
+    end
+    return true
 end
 
 function _M.set_keepalive(self, ...)
