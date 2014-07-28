@@ -891,7 +891,7 @@ function _M.execute(self, query, args, options)
         local table = read_string(buffer)
         return keyspace .. "." .. table .. " " .. change
     else
-        error("Invalid result kind")
+        error(string.format("Invalid result kind: %x", kind))
     end
 end
 
