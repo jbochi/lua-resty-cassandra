@@ -514,7 +514,7 @@ local function read_short_bytes(buffer)
     return read_raw_bytes(buffer, size)
 end
 
-local function read_option(bufffer)
+local function read_option(buffer)
     local type_id = read_short(buffer)
     local type_value = nil
     if type_id == types.custom then
@@ -733,11 +733,11 @@ end
 --- http://ricilake.blogspot.com.br/2007/10/iterating-bits-in-lua.html
 ---
 
-function bit(p)
+local function bit(p)
   return 2 ^ (p - 1)
 end
 
-function hasbit(x, p)
+local function hasbit(x, p)
   return x % (p + p) >= p
 end
 
@@ -789,7 +789,7 @@ local function parse_metadata(buffer)
     end
     local columns = {}
     for j = 1, columns_count do
-        local ksname = global_ksname
+        local ksname = global_keyspace_name
         local tablename = global_tablename
         if not global_tables_spec then
             ksname = read_string(buffer)
@@ -834,7 +834,7 @@ function _M.prepare(self, query)
     if response.op_code ~= op_codes.RESULT then
         error("Result expected")
     end
-    buffer = response.buffer
+    local buffer = response.buffer
     local kind = read_int(buffer)
     if kind == result_kinds.PREPARED then
         local id = read_short_bytes(buffer)
@@ -863,6 +863,7 @@ function _M.execute(self, query, args, options)
     end
 
     local values = {}
+    local flags
     if not args then
         flags = string.char(0)
     else
@@ -883,7 +884,7 @@ function _M.execute(self, query, args, options)
     if response.op_code ~= op_codes.RESULT then
         error("Result expected")
     end
-    buffer = response.buffer
+    local buffer = response.buffer
     local kind = read_int(buffer)
     if kind == result_kinds.VOID then
         return response.tracing_id and {tracing_id=response.tracing_id} or true
