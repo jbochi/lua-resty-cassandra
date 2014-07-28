@@ -15,7 +15,7 @@ For usage inside nginx, just copy the `src/cassandra.lua` file.
 
 Otherwise, run:
 
-    $ luarocks install --server=http://rocks.moonscript.org cassandra
+    $ luarocks install cassandra
 
 
 API
