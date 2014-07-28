@@ -680,7 +680,7 @@ local function read_error(buffer)
     return 'Cassandra returned error (' .. error_code .. '): "' .. error_message .. '"'
 end
 
-local function read_frame(self)
+local function read_frame(self, tracing)
     local header, err, partial = self.sock:receive(8)
     if not header then
         return nil, "Failed to read frame header: " .. err
@@ -691,7 +691,7 @@ local function read_frame(self)
     local stream = read_raw_byte(header_buffer)
     local op_code = read_raw_byte(header_buffer)
     local length = read_int(header_buffer)
-    local body, err, partial
+    local body, err, partial, tracing_id
     if length > 0 then
         body, err, partial = self.sock:receive(length)
         if not body then
@@ -704,6 +704,10 @@ local function read_frame(self)
         error("Invalid response version")
     end
     local body_buffer = create_buffer(body)
+    if flags == 0x02 then -- tracing
+        tracing_id = read_uuid(string.sub(body, 1, 16))
+        body_buffer.pos = 17
+    end
     if op_code == op_codes.ERROR then
         return nil, read_error(body_buffer)
     end
@@ -711,7 +715,8 @@ local function read_frame(self)
         flags=flags,
         stream=stream,
         op_code=op_code,
-        buffer=body_buffer
+        buffer=body_buffer,
+        tracing_id=tracing_id
     }
 end
 
@@ -732,9 +737,9 @@ end
 --- CLIENT METHODS
 ---
 
-local function send_reply_and_get_response(self, op_code, body)
+local function send_reply_and_get_response(self, op_code, body, tracing)
     local version = string.char(version_codes.REQUEST)
-    local flags = '\000'
+    local flags = tracing and '\002' or '\000'
     local stream_id = '\000'
     local length = int_representation(#body)
     local frame = version .. flags .. stream_id .. string.char(op_code) .. length .. body
@@ -834,9 +839,10 @@ function _M.prepare(self, query)
     end
 end
 
-function _M.execute(self, query, args, consistency_level)
-    if not consistency_level then
-        consistency_level = consistency.ONE
+function _M.execute(self, query, args, options)
+    if not options then options = {} end
+    if not options.consistency_level then
+        options.consistency_level = consistency.ONE
     end
 
     local op_code, query_repr
@@ -859,9 +865,9 @@ function _M.execute(self, query, args, consistency_level)
         end
     end
 
-    local query_parameters = short_representation(consistency_level) .. flags
+    local query_parameters = short_representation(options.consistency_level) .. flags
     body = query_repr .. query_parameters .. table.concat(values)
-    local response, err = send_reply_and_get_response(self, op_code, body)
+    local response, err = send_reply_and_get_response(self, op_code, body, options.tracing)
     if not response then
         return nil, err
     end
@@ -872,7 +878,7 @@ function _M.execute(self, query, args, consistency_level)
     buffer = response.buffer
     local kind = read_int(buffer)
     if kind == result_kinds.VOID then
-        return true
+        return response.tracing_id and {tracing_id=response.tracing_id} or true
     elseif kind == result_kinds.ROWS then
         local metadata = parse_metadata(buffer)
         return parse_rows(buffer, metadata)

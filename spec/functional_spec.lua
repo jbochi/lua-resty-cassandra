@@ -94,19 +94,27 @@ describe("cassandra", function()
       assert.truthy(ok)
     end)
 
-    it("should be possible to insert a row", function()
-      local ok, err = session:execute([[
+    it("should be possible to insert a row with tracing", function()
+      local query = [[
         INSERT INTO users (name, age, user_id)
         VALUES ('John O''Reilly', 42, 2644bada-852c-11e3-89fb-e0b9a54a6d93)
-      ]])
-      assert.truthy(ok)
+      ]]
+      local result, err = session:execute(query, {}, {tracing=true})
+      assert.truthy(result)
+      assert.truthy(result.tracing_id)
+      local tracing, err = session:execute(
+        "SELECT * from system_traces.sessions where session_id = ?",
+        {cassandra.uuid(result.tracing_id)}
+      );
+      assert.same(1, #tracing)
+      assert.truthy(query, tracing[1].query)
     end)
 
     it("should be possible to set consistency level", function()
       local ok, err = session:execute([[
         INSERT INTO users (name, age, user_id)
         VALUES ('John O''Reilly', 42, 2644bada-852c-11e3-89fb-e0b9a54a6d93)
-      ]], {}, cassandra.consistency.TWO)
+      ]], {}, {consistency_level=cassandra.consistency.TWO})
       assert.same(err, 'Cassandra returned error (Unavailable exception): "Cannot achieve consistency level TWO"')
     end)
 
