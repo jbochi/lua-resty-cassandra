@@ -31,6 +31,22 @@ describe("cassandra", function()
     assert.truthy(connected)
   end)
 
+  it("should try another host if it fails to connect", function()
+    local new_session = cassandra.new()
+    new_session:set_timeout(1000)
+    local connected, err = new_session:connect({"0.0.0.1", "0.0.0.2", "0.0.0.3", "127.0.0.1"})
+    assert.truthy(connected)
+    assert.falsy(err)
+  end)
+
+  it("should return error if fails to connect to all hosts", function()
+    local new_session = cassandra.new()
+    new_session:set_timeout(1000)
+    local connected, err = new_session:connect({"0.0.0.1", "0.0.0.2", "0.0.0.3"})
+    assert.falsy(connected)
+    assert.same("No route to host", err)
+  end)
+
   it("should be queryable", function()
     local rows, err = session:execute("SELECT cql_version, native_protocol_version, release_version FROM system.local");
     assert.same(1, #rows)

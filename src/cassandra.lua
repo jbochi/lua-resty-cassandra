@@ -114,11 +114,25 @@ local error_codes = {
 
 local mt = { __index = _M }
 
+-- see: http://en.wikipedia.org/wiki/Fisher-Yates_shuffle
+local function shuffle(t)
+  local n = #t
+  while n >= 2 do
+    -- n is now the last pertinent index
+    local k = math.random(n) -- 1 <= k <= n
+    -- Quick swap
+    t[n], t[k] = t[k], t[n]
+    n = n - 1
+  end
+  return t
+end
+
 ---
 --- SOCKET METHODS
 ---
 
 function _M.new(self)
+    math.randomseed(ngx and ngx.time() or os.time())
     local sock, err = tcp()
     if not sock then
         return nil, err
@@ -135,17 +149,22 @@ function _M.set_timeout(self, timeout)
     return sock:settimeout(timeout)
 end
 
-function _M.connect(self, host, port)
+function _M.connect(self, contact_points, port)
     if port == nil then port = 9042 end
-    if type(host) == 'table' then
-        -- if host is a list, choose a random item
-        host = host[math.random(#host)]
+    if type(contact_points) == 'table' then
+        shuffle(contact_points)
+    else
+        contact_points = {contact_points}
     end
     local sock = self.sock
     if not sock then
         return nil, "not initialized"
     end
-    local ok, err = sock:connect(host, port)
+    local ok, err
+    for _, host in ipairs(contact_points) do
+        ok, err = sock:connect(host, port)
+        if ok then break end
+    end
     if not ok then
         return false, err
     end
