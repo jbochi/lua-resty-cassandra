@@ -809,7 +809,7 @@ local function parse_metadata(buffer)
     local columns = {}
     for j = 1, columns_count do
         local ksname = global_keyspace_name
-        local tablename = global_tablename
+        local tablename = global_table_name
         if not global_tables_spec then
             ksname = read_string(buffer)
             tablename = read_string(buffer)
