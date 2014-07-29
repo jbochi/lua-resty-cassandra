@@ -48,9 +48,14 @@ describe("cassandra", function()
   end)
 
   it("should be queryable", function()
-    local rows, err = session:execute("SELECT cql_version, native_protocol_version, release_version FROM system.local");
+    local rows, err = session:execute("SELECT cql_version, native_protocol_version, release_version FROM system.local", {}, {tracing=true});
     assert.same(1, #rows)
     assert.same(rows[1].native_protocol_version, "2")
+  end)
+
+  it("should be queryable with tracing", function()
+    local rows, err = session:execute("SELECT cql_version, native_protocol_version, release_version FROM system.local", {}, {tracing=true});
+    assert.truthy(rows.tracing_id)
   end)
 
   it("should support prepared statements", function()
@@ -59,6 +64,12 @@ describe("cassandra", function()
     local rows = session:execute(stmt)
     assert.same(1, #rows)
     assert.same(rows[1].native_protocol_version, "2")
+  end)
+
+  it("should support tracing for prepared statements", function()
+    local stmt, err = session:prepare("SELECT native_protocol_version FROM system.local", {tracing=true});
+    assert.truthy(stmt)
+    assert.truthy(stmt.tracing_id)
   end)
 
   it("should catch errors", function()
@@ -88,7 +99,7 @@ describe("cassandra", function()
     end)
 
     it("should be possible to be created", function()
-      assert.same("lua_tests.users CREATED", table_created)
+      assert.same("users", table_created.table)
     end)
 
     it("should not be possible to be created again", function()
@@ -118,12 +129,10 @@ describe("cassandra", function()
       local result, err = session:execute(query, {}, {tracing=true})
       assert.truthy(result)
       assert.truthy(result.tracing_id)
-      local tracing, err = session:execute(
-        "SELECT * from system_traces.sessions where session_id = ?",
-        {cassandra.uuid(result.tracing_id)}
-      );
-      assert.same(1, #tracing)
-      assert.truthy(query, tracing[1].query)
+      local tracing, err = session:get_trace(result)
+      assert.truthy(query, tracing.query)
+      assert.truthy(tracing.started_at > 0)
+      assert.truthy(#tracing.events > 0)
     end)
 
     it("should be possible to set consistency level", function()

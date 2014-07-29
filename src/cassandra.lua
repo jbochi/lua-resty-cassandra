@@ -844,9 +844,10 @@ local function parse_rows(buffer, metadata)
     return values
 end
 
-function _M.prepare(self, query)
+function _M.prepare(self, query, options)
+    if not options then options = {} end
     local body = long_string_representation(query)
-    local response, err = send_reply_and_get_response(self, op_codes.PREPARE, body)
+    local response, err = send_reply_and_get_response(self, op_codes.PREPARE, body, options.tracing)
     if not response then
         return nil, err
     end
@@ -855,15 +856,18 @@ function _M.prepare(self, query)
     end
     local buffer = response.buffer
     local kind = read_int(buffer)
+    local result = {}
     if kind == result_kinds.PREPARED then
         local id = read_short_bytes(buffer)
         local metadata = parse_metadata(buffer)
         local result_metadata = parse_metadata(buffer)
         assert(buffer.pos == #(buffer.str) + 1)
-        return {id=id, metadata=metadata, result_metadata=result_metadata}
+        result = {type="PREPARED", id=id, metadata=metadata, result_metadata=result_metadata}
     else
         error("Invalid result kind")
     end
+    if response.tracing_id then result.tracing_id = response.tracing_id end
+    return result
 end
 
 function _M.execute(self, query, args, options)
@@ -903,28 +907,61 @@ function _M.execute(self, query, args, options)
     if response.op_code ~= op_codes.RESULT then
         error("Result expected")
     end
+    local result
     local buffer = response.buffer
     local kind = read_int(buffer)
     if kind == result_kinds.VOID then
-        return response.tracing_id and {tracing_id=response.tracing_id} or true
+        result = {type="VOID"}
     elseif kind == result_kinds.ROWS then
         local metadata = parse_metadata(buffer)
-        return parse_rows(buffer, metadata)
+        result = parse_rows(buffer, metadata)
+        result.type = "ROWS"
     elseif kind == result_kinds.SET_KEYSPACE then
-        local keyspace = read_string(buffer)
-        return keyspace
+        result = {
+            type="SET_KEYSPACE",
+            keyspace= read_string(buffer)
+        }
     elseif kind == result_kinds.SCHEMA_CHANGE then
-        local change = read_string(buffer)
-        local keyspace = read_string(buffer)
-        local table = read_string(buffer)
-        return keyspace .. "." .. table .. " " .. change
+        result = {
+            type="SCHEMA_CHANGE",
+            change=read_string(buffer),
+            keyspace=read_string(buffer),
+            table=read_string(buffer)
+        }
     else
         error(string.format("Invalid result kind: %x", kind))
     end
+    if response.tracing_id then result.tracing_id = response.tracing_id end
+    return result
 end
 
 function _M.set_keyspace(self, keyspace_name)
     return self:execute("USE " .. keyspace_name)
+end
+
+function _M.get_trace(self, result)
+    if not result.tracing_id then
+        return nil, "No tracing available"
+    end
+    local rows, err = session:execute([[
+        SELECT coordinator, duration, parameters, request, started_at
+          FROM  system_traces.sessions WHERE session_id = ?]],
+        {_M.uuid(result.tracing_id)})
+    if not rows then
+        return nil, "Unable to get trace: " .. err
+    end
+    if #rows == 0 then
+        return nil, "Trace not found"
+    end
+    local trace = rows[1]
+    trace.events, err = session:execute([[
+        SELECT event_id, activity, source, source_elapsed, thread
+          FROM system_traces.events WHERE session_id = ?]],
+        {_M.uuid(result.tracing_id)})
+    if not trace.events then
+        return nil, "Unable to get trace events: " .. err
+    end
+    return trace
 end
 
 return _M
