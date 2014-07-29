@@ -44,7 +44,7 @@ describe("cassandra", function()
     new_session:set_timeout(1000)
     local connected, err = new_session:connect({"0.0.0.1", "0.0.0.2", "0.0.0.3"})
     assert.falsy(connected)
-    assert.same("No route to host", err)
+    assert.truthy(err)
   end)
 
   it("should be queryable", function()
