@@ -20,6 +20,8 @@ Otherwise, run:
 
 API
 ---
+
+Overview:
 ```lua
 cassandra = require("cassandra")
 session = cassandra.new()
@@ -55,6 +57,82 @@ ngx.say(user.age) -- 42
 ```
 
 You can check more examples on the [tests](https://github.com/jbochi/lua-resty-cassandra/blob/master/spec/functional_spec.lua).
+
+
+### Methods
+
+#### session, err = cassandra.new()
+
+Creates a new session.
+
+#### ok, err = session:set_timeout(timeout)
+
+Sets timeout (in miliseconds).
+
+#### ok, err = session:connect({contact_points}, port)
+
+Connect to a single host or to a handle host in an array of contact points at the given port.
+
+#### ok, err = session:setkeepalive(max_idle_timeout, pool_size)  -- Nginx only
+
+Puts the current Redis connection immediately into the ngx_lua cosocket connection pool.
+
+You can specify the max idle timeout (in ms) when the connection is in the pool and the maximal size of the pool every nginx worker process.
+
+In case of success, returns `1`. In case of errors, returns `nil` with a string describing the error.
+
+Only call this method in the place you would have called the close method instead. Calling this method will immediately turn the current redis object into the closed state. Any subsequent operations other than connect() on the current objet will return the closed error.
+
+#### times, err = session:get_reused_times() -- Nginx only
+
+This method returns the (successfully) reused times for the current connection. In case of error, it returns `nil` and a string describing the error.
+
+If the current connection does not come from the built-in connection pool, then this method always returns `0`, that is, the connection has never been reused (yet). If the connection comes from the connection pool, then the return value is always non-zero. So this method can also be used to determine if the current connection comes from the pool.
+
+#### ok, err = red:close()
+
+Closes the current connection and returns the status.
+
+In case of success, returns `1`. In case of errors, returns nil with a string describing the error.
+
+#### stmt, err = session:prepare(query, options)
+
+Prepare a statement for later execution.
+
+#### result, err = session:execute(query, args, options)
+
+Execute a query or previously prepared statement. `args` is an array of arguments that can be optionally
+type annoted. For example, with `cassandra.bigint(4)`. If there is no annotation, the driver will try to
+infer a type. Since integer numbers are serialized as `int` with 4 bytes, Cassandra would return an error 
+if we tried to insert it in a `bigint` column. `options` is a table that can contain two types of keys:
+
+* `consistency_level`: for example `cassandra.consistency.ONE`
+* `tracing`: enables tracing for this query. In this case, the result table will contain a key named `tracing_id` with an uuid of the tracing session.
+
+
+#### ok, err = session:set_keyspace(keyspace_name)
+
+Sets a given keyspace_name
+
+
+#### trace, err = session:get_trace(result)
+
+Return the trace of a given result, if possible. The trace is a table with the following keys:
+
+* coordinator
+* duration
+* parameters
+* request
+* started_at
+* events: an array of tables with the following keys:
+    * event_id
+    * activity
+    * source
+    * source_elapsed
+    * thread
+
+
+
 
 Running tests
 -------------
