@@ -89,7 +89,7 @@ This method returns the (successfully) reused times for the current connection. 
 
 If the current connection does not come from the built-in connection pool, then this method always returns `0`, that is, the connection has never been reused (yet). If the connection comes from the connection pool, then the return value is always non-zero. So this method can also be used to determine if the current connection comes from the pool.
 
-#### ok, err = red:close()
+#### ok, err = session:close()
 
 Closes the current connection and returns the status.
 
@@ -97,7 +97,7 @@ In case of success, returns `1`. In case of errors, returns nil with a string de
 
 #### stmt, err = session:prepare(query, options)
 
-Prepare a statement for later execution.
+Prepare a statement for later execution. `option` are the same options available on `execute`
 
 #### result, err = session:execute(query, args, options)
 
@@ -112,12 +112,12 @@ if we tried to insert it in a `bigint` column. `options` is a table that can con
 
 #### ok, err = session:set_keyspace(keyspace_name)
 
-Sets a given keyspace_name
+Sets session keyspace to the given `keyspace_name`.
 
 
 #### trace, err = session:get_trace(result)
 
-Return the trace of a given result, if possible. The trace is a table with the following keys:
+Return the trace of a given result, if possible. The trace is a table with the following keys (from `system_traces.sessions` and `system_traces.events` [system tracing tables](http://www.datastax.com/dev/blog/advanced-request-tracing-in-cassandra-1-2):
 
 * coordinator
 * duration
@@ -130,8 +130,6 @@ Return the trace of a given result, if possible. The trace is a table with the f
     * source
     * source_elapsed
     * thread
-
-
 
 
 Running tests
