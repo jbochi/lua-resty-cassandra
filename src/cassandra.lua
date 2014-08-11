@@ -943,7 +943,7 @@ function _M.get_trace(self, result)
     if not result.tracing_id then
         return nil, "No tracing available"
     end
-    local rows, err = session:execute([[
+    local rows, err = self:execute([[
         SELECT coordinator, duration, parameters, request, started_at
           FROM  system_traces.sessions WHERE session_id = ?]],
         {_M.uuid(result.tracing_id)})
@@ -954,7 +954,7 @@ function _M.get_trace(self, result)
         return nil, "Trace not found"
     end
     local trace = rows[1]
-    trace.events, err = session:execute([[
+    trace.events, err = self:execute([[
         SELECT event_id, activity, source, source_elapsed, thread
           FROM system_traces.events WHERE session_id = ?]],
         {_M.uuid(result.tracing_id)})
