@@ -898,7 +898,7 @@ function _M.execute(self, query, args, options)
     end
 
     local query_parameters = short_representation(options.consistency_level) .. flags
-    body = query_repr .. query_parameters .. table.concat(values)
+    local body = query_repr .. query_parameters .. table.concat(values)
     local response, err = send_reply_and_get_response(self, op_code, body, options.tracing)
     if not response then
         return nil, err
