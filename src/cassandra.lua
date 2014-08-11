@@ -785,7 +785,7 @@ function _M.startup(self)
         return nil, err
     end
     if response.op_code ~= op_codes.READY then
-        return nil, "Server is not ready"
+        error("Server is not ready")
     end
     return true
 end
