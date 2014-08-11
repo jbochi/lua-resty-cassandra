@@ -163,7 +163,10 @@ function _M.connect(self, contact_points, port)
     local ok, err
     for _, host in ipairs(contact_points) do
         ok, err = sock:connect(host, port)
-        if ok then break end
+        if ok then
+            self.host = host
+            break
+        end
     end
     if not ok then
         return false, err
@@ -710,7 +713,7 @@ end
 local function read_frame(self, tracing)
     local header, err, partial = self.sock:receive(8)
     if not header then
-        return nil, "Failed to read frame header: " .. err
+        return nil, string.format("Failed to read frame header from %s: %s", self.host, err)
     end
     local header_buffer = create_buffer(header)
     local version = read_raw_byte(header_buffer)
@@ -722,7 +725,7 @@ local function read_frame(self, tracing)
     if length > 0 then
         body, err, partial = self.sock:receive(length)
         if not body then
-            return nil, "Failed to read frame body: " .. err
+            return nil, string.format("Failed to read frame body from %s: %s", self.host, err)
         end
     else
         body = ""
@@ -773,7 +776,7 @@ local function send_reply_and_get_response(self, op_code, body, tracing)
 
     local bytes, err = self.sock:send(frame)
     if not bytes then
-        return nil, "Failed to send data to cassandra: " .. err
+        return nil, string.format("Failed to read frame header from %s: %s", self.host, err)
     end
     return read_frame(self)
 end
