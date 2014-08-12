@@ -75,7 +75,7 @@ Connect to a single host or to a handle host in an array of contact points at th
 
 #### ok, err = session:setkeepalive(max_idle_timeout, pool_size)  -- Nginx only
 
-Puts the current Redis connection immediately into the ngx_lua cosocket connection pool.
+Puts the current Cassandra connection immediately into the ngx_lua cosocket connection pool.
 
 You can specify the max idle timeout (in ms) when the connection is in the pool and the maximal size of the pool every nginx worker process.
 
