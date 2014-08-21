@@ -159,15 +159,15 @@ describe("cassandra", function()
   end)
 
   local types = {
-    {name='ascii', insert_value='string', read_value='string'},
+    {name='ascii', value='string'},
     {name='ascii', insert_value=cassandra.null, read_value=nil},
     {name='bigint', insert_value=cassandra.bigint(42000000000), read_value=42000000000},
     {name='bigint', insert_value=cassandra.bigint(-42000000000), read_value=-42000000000},
     {name='bigint', insert_value=cassandra.bigint(-42), read_value=-42},
-    {name='blob', insert_value="\005\042", read_value="\005\042"},
-    {name='blob', insert_value=string.rep("blob", 10000), read_value=string.rep("blob", 10000)},
-    {name='boolean', insert_value=true, read_value=true},
-    {name='boolean', insert_value=false, read_value=false},
+    {name='blob', value="\005\042"},
+    {name='blob', value=string.rep("blob", 10000)},
+    {name='boolean', value=true},
+    {name='boolean', value=false},
     -- counters are not here because they are used with UPDATE instead of INSERT
     -- todo: decimal,
     {name='double', insert_value=cassandra.double(1.0000000000000004), read_test=function(value) return math.abs(value - 1.0000000000000004) < 0.000000000000001 end},
@@ -179,15 +179,15 @@ describe("cassandra", function()
     {name='float', insert_value=cassandra.float(0), read_test=function(value) return math.abs(value - 0) < 0.0000001 end},
     {name='float', insert_value=-3.14151, read_test=function(value) return math.abs(value + 3.14151) < 0.0000001 end},
     {name='float', insert_value=cassandra.float(314151), read_test=function(value) return math.abs(value - 314151) < 0.0000001 end},
-    {name='int', insert_value=4200, read_value=4200},
-    {name='int', insert_value=-42, read_value=-42},
-    {name='text', insert_value='string', read_value='string'},
+    {name='int', value=4200},
+    {name='int', value=-42},
+    {name='text', value='string'},
     {name='timestamp', insert_value=cassandra.timestamp(1405356926), read_value=1405356926},
     {name='uuid', insert_value=cassandra.uuid("1144bada-852c-11e3-89fb-e0b9a54a6d11"), read_value="1144bada-852c-11e3-89fb-e0b9a54a6d11"},
-    {name='varchar', insert_value='string', read_value='string'},
-    {name='blob', insert_value=string.rep("string", 10000), read_value=string.rep("string", 10000)},
-    {name='varint', insert_value=4200, read_value=4200},
-    {name='varint', insert_value=-42, read_value=-42},
+    {name='varchar', value='string'},
+    {name='blob', value=string.rep("string", 10000)},
+    {name='varint', value=4200},
+    {name='varint', value=-42},
     {name='timeuuid', insert_value=cassandra.uuid("1144bada-852c-11e3-89fb-e0b9a54a6d11"), read_value="1144bada-852c-11e3-89fb-e0b9a54a6d11"},
     {name='inet', insert_value=cassandra.inet("127.0.0.1"), read_value="127.0.0.1"},
     {name='inet', insert_value=cassandra.inet("2001:0db8:85a3:0042:1000:8a2e:0370:7334"), read_value="2001:0db8:85a3:0042:1000:8a2e:0370:7334"},
@@ -214,14 +214,14 @@ describe("cassandra", function()
         local ok, err = session:execute([[
           INSERT INTO type_test_table (key, value)
           VALUES (?, ?)
-        ]], {"key", type.insert_value})
+        ]], {"key", type.insert_value ~= nil and type.insert_value or type.value})
         assert.same(nil, err)
         local rows, err = session:execute("SELECT value FROM type_test_table WHERE key = 'key'")
         assert.same(1, #rows)
         if type.read_test then
           assert.truthy(type.read_test(rows[1].value))
         else
-          assert.same(type.read_value, rows[1].value)
+          assert.same(type.read_value ~= nil and type.read_value or type.value, rows[1].value)
         end
       end)
       after_each(function()
