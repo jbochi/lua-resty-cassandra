@@ -1,4 +1,4 @@
-package.path = package.path .. ";spec/?.lua"
+package.path = package.path .. "src/?.lua;spec/?.lua"
 ngx = require("fake_ngx")
 local cassandra = require("cassandra")
 
