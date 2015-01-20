@@ -371,7 +371,7 @@ end
 local function inet_representation(value)
     local digits = {}
     -- ipv6
-    for d in string.gfind(value, "([^:]+)") do
+    for d in string.gmatch(value, "([^:]+)") do
         if #d == 4 then
             for i = 1, #d, 2 do
                 digits[#digits + 1] = string.char(tonumber(string.sub(d, i, i + 1), 16))
@@ -380,7 +380,7 @@ local function inet_representation(value)
     end
     -- ipv4
     if #digits == 0 then
-        for d in string.gfind(value, "(%d+)") do
+        for d in string.gmatch(value, "(%d+)") do
             table.insert(digits, string.char(d))
         end
     end
