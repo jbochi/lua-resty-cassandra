@@ -50,7 +50,7 @@ describe("cassandra", function()
   it("should be queryable", function()
     local rows, err = session:execute("SELECT cql_version, native_protocol_version, release_version FROM system.local", {}, {tracing=true});
     assert.same(1, #rows)
-    assert.same(rows[1].native_protocol_version, "2")
+    assert.truthy(rows[1].native_protocol_version == "2" or rows[1].native_protocol_version == "3")
   end)
 
   it("should be queryable with tracing", function()
@@ -63,7 +63,7 @@ describe("cassandra", function()
     assert.truthy(stmt)
     local rows = session:execute(stmt)
     assert.same(1, #rows)
-    assert.same(rows[1].native_protocol_version, "2")
+    assert.truthy(rows[1].native_protocol_version == "2" or rows[1].native_protocol_version == "3")
   end)
 
   it("should support tracing for prepared statements", function()
