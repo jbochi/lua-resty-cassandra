@@ -77,9 +77,11 @@ describe("cassandra", function()
         assert.same(row[3], row.release_version)
       end)
 
-      it("should have the correct number of columns", function()
-        assert.same(#row, 3)
-      end)
+      if (_VERSION >= "Lua 5.2") then
+        it("should have the correct number of columns", function()
+          assert.same(#row, 3)
+        end)
+      end
 
       it("should be iterable by key and value", function()
         local columns = {cql_version="cql_version",
