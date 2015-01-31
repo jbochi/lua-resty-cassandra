@@ -61,7 +61,11 @@ describe("cassandra", function()
     end)
 
     describe("a row", function()
-      local row = rows[1]
+      local row
+
+      before_each(function()
+        row = rows[1]
+      end)
 
       it("should be acessible by column name", function()
         assert.truthy(row.native_protocol_version == "2" or row.native_protocol_version == "3")
