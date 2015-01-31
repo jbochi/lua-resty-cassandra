@@ -47,10 +47,48 @@ describe("cassandra", function()
     assert.truthy(err)
   end)
 
-  it("should be queryable", function()
-    local rows, err = session:execute("SELECT cql_version, native_protocol_version, release_version FROM system.local", {}, {tracing=true});
-    assert.same(1, #rows)
-    assert.truthy(rows[1].native_protocol_version == "2" or rows[1].native_protocol_version == "3")
+
+
+  describe("query result", function()
+    local rows, err
+
+    before_each(function()
+      rows, err = session:execute("SELECT cql_version, native_protocol_version, release_version FROM system.local", {}, {tracing=true})
+    end)
+
+    it("should have a length", function()
+      assert.same(1, #rows)
+    end)
+
+    describe("a row", function()
+      local row = rows[1]
+
+      it("should be acessible by column name", function()
+        assert.truthy(row.native_protocol_version == "2" or row.native_protocol_version == "3")
+      end)
+
+      it("should be acessible by position", function()
+        assert.same(row[1], row.cql_version)
+        assert.same(row[2], row.native_protocol_version)
+        assert.same(row[3], row.release_version)
+      end)
+
+      it("should have the correct number of columns", function()
+        assert.same(#row, 3)
+      end)
+
+      it("should be iterable by key and value", function()
+        local columns = {cql_version="cql_version",
+                         native_protocol_version="native_protocol_version",
+                         release_version="release_version"}
+        local n_columns = 0
+        for key, _ in pairs(row) do
+          assert.same(columns[key], key)
+          n_columns = n_columns + 1
+        end
+        assert.same(n_columns, 3)
+      end)
+    end)
   end)
 
   it("should be queryable with tracing", function()

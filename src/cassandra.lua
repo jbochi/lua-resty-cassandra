@@ -834,11 +834,22 @@ local function parse_rows(buffer, metadata)
     local columns_count = metadata.columns_count
     local rows_count = read_int(buffer)
     local values = {}
+    local row_mt = {
+      __index = function(t, i)
+        -- allows field access by position/index, not column name only
+        local column = columns[i]
+        if column then
+          return t[column.name]
+        end
+        return nil
+      end,
+      __len = function() return columns_count end
+    }
     for i = 1, rows_count do
         local row = {}
+        setmetatable(row, row_mt)
         for j = 1, columns_count do
             local value = read_value(buffer, columns[j].type)
-            row[j] = value
             row[columns[j].name] = value
         end
         values[#values + 1] = row
