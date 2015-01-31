@@ -39,7 +39,7 @@ describe("cassandra", function()
     assert.falsy(err)
   end)
 
-  it("should return error if fails to connect to all hosts", function()
+  it("should return error if it fails to connect to all hosts", function()
     local new_session = cassandra.new()
     new_session:set_timeout(1000)
     local connected, err = new_session:connect({"0.0.0.1", "0.0.0.2", "0.0.0.3"})
@@ -54,12 +54,12 @@ describe("cassandra", function()
   end)
 
   it("should be queryable with tracing", function()
-    local rows, err = session:execute("SELECT cql_version, native_protocol_version, release_version FROM system.local", {}, {tracing=true});
+    local rows, err = session:execute("SELECT cql_version, native_protocol_version, release_version FROM system.local", {}, {tracing=true})
     assert.truthy(rows.tracing_id)
   end)
 
   it("should support prepared statements", function()
-    local stmt, err = session:prepare("SELECT native_protocol_version FROM system.local");
+    local stmt, err = session:prepare("SELECT native_protocol_version FROM system.local")
     assert.truthy(stmt)
     local rows = session:execute(stmt)
     assert.same(1, #rows)
@@ -67,7 +67,7 @@ describe("cassandra", function()
   end)
 
   it("should support tracing for prepared statements", function()
-    local stmt, err = session:prepare("SELECT native_protocol_version FROM system.local", {tracing=true});
+    local stmt, err = session:prepare("SELECT native_protocol_version FROM system.local", {tracing=true})
     assert.truthy(stmt)
     assert.truthy(stmt.tracing_id)
   end)
