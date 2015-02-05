@@ -125,11 +125,13 @@ function _M.new(self)
     math.randomseed(ngx and ngx.time() or os.time())
 
     local tcp
-    if ngx and ngx.socket and ngx.socket.tcp then
+    if ngx and ngx.get_phase() ~= "init" then
         -- openresty
         tcp = ngx.socket.tcp
     else
         -- fallback to luasocket
+        -- It's also a fallback for openresty in, the
+        -- "init" phase that doesn't support sockets
         tcp = require("socket").tcp
     end
 
