@@ -209,6 +209,26 @@ describe("cassandra", function()
       assert.same(42, user.age)
       assert.truthy(ok)
     end)
+
+    it("should support batch statements", function()
+      local batch = cassandra.BatchStatement()
+
+      batch:add("INSERT INTO users (name, age, user_id) VALUES (?, ?, ?)",
+        {"James", 32, cassandra.uuid("2644bada-852c-11e3-89fb-e0b9a54a6d93")})
+
+      local stmt, err = session:prepare("INSERT INTO users (name, age, user_id) VALUES (?, ?, ?)")
+      batch:add(stmt,
+        {"John", 45, cassandra.uuid("1144bada-852c-11e3-89fb-e0b9a54a6d11")})
+
+      local result, err = session:execute(batch)
+      assert.falsy(err)
+      assert.truthy(result)
+
+      local users, err = session:execute("SELECT name, age, user_id from users")
+      assert.same(2, #users)
+      assert.same("James", users[1].name)
+      assert.same("John", users[2].name)
+    end)
   end)
 
   local types = {
