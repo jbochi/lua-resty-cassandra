@@ -1,15 +1,5 @@
 -- Implementation of CQL Binary protocol V2 available at https://git-wip-us.apache.org/repos/asf?p=cassandra.git;a=blob_plain;f=doc/native_protocol_v2.spec;hb=HEAD
 
-local tcp
-if ngx then
-    -- openresty
-    tcp = ngx.socket.tcp
-else
-    -- fallback to luasocket
-    local socket = require("socket")
-    tcp = socket.tcp
-end
-
 local _M = {}
 
 _M.version = "0.0.1"
@@ -133,6 +123,16 @@ end
 
 function _M.new(self)
     math.randomseed(ngx and ngx.time() or os.time())
+
+    local tcp
+    if ngx and ngx.socket and ngx.socket.tcp then
+        -- openresty
+        tcp = ngx.socket.tcp
+    else
+        -- fallback to luasocket
+        tcp = require("socket").tcp
+    end
+
     local sock, err = tcp()
     if not sock then
         return nil, err
