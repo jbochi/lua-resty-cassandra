@@ -131,7 +131,7 @@ function _M.new(self)
     else
         -- fallback to luasocket
         -- It's also a fallback for openresty in the
-        -- "init" phase that doesn't support sockets
+        -- "init" phase that doesn't support Cosockets
         tcp = require("socket").tcp
     end
 
