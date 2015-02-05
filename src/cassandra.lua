@@ -130,7 +130,7 @@ function _M.new(self)
         tcp = ngx.socket.tcp
     else
         -- fallback to luasocket
-        -- It's also a fallback for openresty in, the
+        -- It's also a fallback for openresty in the
         -- "init" phase that doesn't support sockets
         tcp = require("socket").tcp
     end
