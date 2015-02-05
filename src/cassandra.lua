@@ -125,7 +125,7 @@ function _M.new(self)
     math.randomseed(ngx and ngx.time() or os.time())
 
     local tcp
-    if ngx then
+    if ngx and ngx.socket and ngx.socket.tcp then
         -- openresty
         tcp = ngx.socket.tcp
     else
