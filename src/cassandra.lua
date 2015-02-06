@@ -43,7 +43,14 @@ local consistency = {
     LOCAL_SERIAL=0x0009,
     LOCAL_ONE=0x000A
 }
+
 _M.consistency = consistency
+
+local query_flags = {
+    VALUES=0x01,
+    PAGE_SIZE=0x04,
+    PAGING_STATE=0x08
+}
 
 local result_kinds = {
     VOID=0x01,
@@ -82,6 +89,7 @@ for key, value in pairs(types) do
         return {type=key, value=value}
     end
 end
+
 _M.null = {type="null", value=nil}
 
 local error_codes = {
@@ -106,15 +114,15 @@ local mt = { __index = _M }
 
 -- see: http://en.wikipedia.org/wiki/Fisher-Yates_shuffle
 local function shuffle(t)
-  local n = #t
-  while n >= 2 do
-    -- n is now the last pertinent index
-    local k = math.random(n) -- 1 <= k <= n
-    -- Quick swap
-    t[n], t[k] = t[k], t[n]
-    n = n - 1
-  end
-  return t
+    local n = #t
+    while n >= 2 do
+        -- n is now the last pertinent index
+        local k = math.random(n) -- 1 <= k <= n
+        -- Quick swap
+        t[n], t[k] = t[k], t[n]
+        n = n - 1
+    end
+    return t
 end
 
 ---
@@ -211,6 +219,7 @@ local function close(self)
 
     return sock:close()
 end
+
 _M.close = close
 
 ---
@@ -474,18 +483,19 @@ local function value_representation(value, short)
     end
     return bytes_representation(representation)
 end
+
 _M._value_representation = value_representation
 
 local function values_representation(args)
-  if not args then
-    return ""
-  end
-  local values = {}
-  values[#values + 1] = short_representation(#args)
-  for _, value in ipairs(args) do
-    values[#values + 1] = value_representation(value)
-  end
-  return table.concat(values)
+    if not args then
+        return ""
+    end
+    local values = {}
+    values[#values + 1] = short_representation(#args)
+    for _, value in ipairs(args) do
+        values[#values + 1] = value_representation(value)
+    end
+    return table.concat(values)
 end
 
 ---
@@ -716,6 +726,7 @@ local function read_value(buffer, type, short)
     end
     return unpackers[type.id](bytes, type)
 end
+
 _M._read_value = read_value
 
 local function read_error(buffer)
@@ -777,11 +788,15 @@ local function hasbit(x, p)
   return x % (p + p) >= p
 end
 
+local function setbit(x, p)
+  return hasbit(x, p) and x or x + p
+end
+
 ---
 --- CLIENT METHODS
 ---
 
-local function send_reply_and_get_response(self, op_code, body, tracing)
+local function send_frame_and_get_response(self, op_code, body, tracing)
     local version = string.char(version_codes.REQUEST)
     local flags = tracing and '\002' or '\000'
     local stream_id = '\000'
@@ -797,7 +812,7 @@ end
 
 function _M.startup(self)
     local body = string_map_representation({["CQL_VERSION"]=CQL_VERSION})
-    local response, err = send_reply_and_get_response(self, op_codes.STARTUP, body)
+    local response, err = send_frame_and_get_response(self, op_codes.STARTUP, body)
     if not response then
         return nil, err
     end
@@ -811,18 +826,20 @@ local function parse_metadata(buffer)
     local flags = read_int(buffer)
     local global_tables_spec = hasbit(flags, bit(1))
     local has_more_pages = hasbit(flags, bit(2))
-    local no_metadata = hasbit(flags, bit(3))
     local columns_count = read_int(buffer)
-    local paging_state = nil
+
+    local paging_state
     if has_more_pages then
         paging_state = read_bytes(buffer)
     end
+
     local global_keyspace_name = nil
     local global_table_name = nil
     if global_tables_spec then
         global_keyspace_name = read_string(buffer)
         global_table_name = read_string(buffer)
     end
+
     local columns = {}
     for j = 1, columns_count do
         local ksname = global_keyspace_name
@@ -832,15 +849,14 @@ local function parse_metadata(buffer)
             tablename = read_string(buffer)
         end
         local column_name = read_string(buffer)
-        local type = read_option(buffer)
         columns[#columns + 1] = {
             keyspace = ksname,
             table = tablename,
             name = column_name,
-            type = type
+            type = read_option(buffer)
         }
     end
-    return {columns_count=columns_count, columns=columns}
+    return {columns_count=columns_count, columns=columns, paging_state=paging_state}
 end
 
 local function parse_rows(buffer, metadata)
@@ -905,7 +921,7 @@ end
 function _M.prepare(self, query, options)
     if not options then options = {} end
     local body = long_string_representation(query)
-    local response, err = send_reply_and_get_response(self, op_codes.PREPARE, body, options.tracing)
+    local response, err = send_frame_and_get_response(self, op_codes.PREPARE, body, options.tracing)
     if not response then
         return nil, err
     end
@@ -933,7 +949,11 @@ function _M.execute(self, query, args, options)
     if not options.consistency_level then
         options.consistency_level = consistency.ONE
     end
+    if not options.page_size then
+        options.page_size = 100
+    end
 
+    -- Determine if query is query, statement, or batch
     local op_code, query_repr
     if type(query) == "string" then
         op_code = op_codes.QUERY
@@ -946,24 +966,42 @@ function _M.execute(self, query, args, options)
         query_repr = short_bytes_representation(query.id)
     end
 
-    local values = {}
-    local flags
-    if not args then
-        flags = string.char(0)
-    else
-        flags = string.char(1)
+    -- Flags of the <query_parameters>
+    local flags = 0
+
+    if args then
+        flags = setbit(flags, query_flags.VALUES)
     end
 
-    local query_parameters = short_representation(options.consistency_level) .. flags
-    local body = query_repr .. query_parameters .. values_representation(args)
-    local response, err = send_reply_and_get_response(self, op_code, body, options.tracing)
+    local result_page_size = ""
+    if options.page_size > 0 then
+        flags = setbit(flags, query_flags.PAGE_SIZE)
+        result_page_size = int_representation(options.page_size)
+    end
+
+    local paging_state = ""
+    if options.paging_state then
+        flags = setbit(flags, query_flags.PAGING_STATE)
+        paging_state = bytes_representation(options.paging_state)
+    end
+
+    -- <query_parameters>: <consistency><flags>[<value><...>][<result_page_size>][<paging_state>]
+    local query_parameters = short_representation(options.consistency_level) .. string.char(flags) .. values_representation(args) .. result_page_size .. paging_state
+
+    -- frame body: <query><query_parameters>
+    local body = query_repr .. query_parameters
+
+    -- Send frame
+    local response, err = send_frame_and_get_response(self, op_code, body, options.tracing)
+
+    -- Check response errors
     if not response then
         return nil, err
-    end
-
-    if response.op_code ~= op_codes.RESULT then
+    elseif response.op_code ~= op_codes.RESULT then
         error("Result expected")
     end
+
+    -- Parse response
     local result
     local buffer = response.buffer
     local kind = read_int(buffer)
@@ -973,6 +1011,7 @@ function _M.execute(self, query, args, options)
         local metadata = parse_metadata(buffer)
         result = parse_rows(buffer, metadata)
         result.type = "ROWS"
+        result.paging_state = metadata.paging_state
     elseif kind == result_kinds.SET_KEYSPACE then
         result = {
             type="SET_KEYSPACE",
@@ -988,7 +1027,11 @@ function _M.execute(self, query, args, options)
     else
         error(string.format("Invalid result kind: %x", kind))
     end
-    if response.tracing_id then result.tracing_id = response.tracing_id end
+
+    if response.tracing_id then
+        result.tracing_id = response.tracing_id
+    end
+
     return result
 end
 

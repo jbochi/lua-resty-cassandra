@@ -47,8 +47,6 @@ describe("cassandra", function()
     assert.truthy(err)
   end)
 
-
-
   describe("query result", function()
     local rows, err
 
@@ -302,6 +300,39 @@ describe("cassandra", function()
       end)
     end)
   end
+
+  describe("pagination", function()
+    before_each(function()
+      session:set_keyspace("lua_tests")
+      local ok, err = session:execute [[ CREATE TABLE pagination_test_table(
+                          key int PRIMARY KEY,
+                          value varchar) ]]
+      for i = 1, 200 do
+        session:execute([[ INSERT INTO pagination_test_table(key, value)
+                            VALUES(?,?) ]], { i, "test" })
+      end
+    end)
+    it("should have a default page size", function()
+      local rows, err = session:execute("SELECT * FROM pagination_test_table")
+      assert.same(100, #rows)
+    end)
+    it("should be an overridable option", function()
+      local rows, err = session:execute("SELECT * FROM pagination_test_table", nil, {page_size=200})
+      assert.same(200, #rows)
+    end)
+    it("should return a paging_state", function()
+      local rows, err = session:execute("SELECT * FROM pagination_test_table")
+      assert.same(100, #rows)
+
+      rows, err = session:execute("SELECT * FROM pagination_test_table", nil, {
+        paging_state=rows.paging_state
+      })
+      assert.same(100, #rows)
+    end)
+    after_each(function()
+      session:execute("DROP TABLE pagination_test_table")
+    end)
+  end)
 
   describe("counters", function()
     before_each(function()
