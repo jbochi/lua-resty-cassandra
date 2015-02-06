@@ -1,8 +1,8 @@
 package = "cassandra"
-version = "0.3-1"
+version = "0.4-1"
 source = {
    url = "git://github.com/jbochi/lua-resty-cassandra",
-   tag = "v0.3"
+   tag = "v0.4"
 }
 description = {
    summary = "Pure Lua Cassandra - CQL client",
