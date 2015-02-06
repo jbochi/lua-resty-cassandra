@@ -1,8 +1,10 @@
--- Implementation of CQL Binary protocol V2 available at https://git-wip-us.apache.org/repos/asf?p=cassandra.git;a=blob_plain;f=doc/native_protocol_v2.spec;hb=HEAD
+-- Implementation of CQL Binary protocol V2 available:
+-- https://git-wip-us.apache.org/repos/asf?p=cassandra.git;a=blob_plain;f=doc/native_protocol_v2.spec;hb=HEAD
 
 local _M = {}
 
 _M.version = "0.0.1"
+
 local CQL_VERSION = "3.0.0"
 
 local version_codes = {
@@ -50,6 +52,13 @@ local query_flags = {
     VALUES=0x01,
     PAGE_SIZE=0x04,
     PAGING_STATE=0x08
+}
+
+local rows_flags = {
+    GLOBAL_TABLES_SPEC=0x01,
+    HAS_MORE_PAGES=0x02,
+    -- 0x03
+    NO_METADATA=0x04
 }
 
 local result_kinds = {
@@ -199,7 +208,6 @@ function _M.set_keepalive(self, ...)
     return nil, "luasocket does not support reusable sockets"
 end
 
-
 function _M.get_reused_times(self)
     local sock = self.sock
     if not sock then
@@ -209,7 +217,6 @@ function _M.get_reused_times(self)
     end
     return nil, "luasocket does not support reusable sockets"
 end
-
 
 local function close(self)
     local sock = self.sock
@@ -250,25 +257,21 @@ local function short_representation(num)
 end
 
 local function bigint_representation(n)
+    local first_byte
     if n >= 0 then
-        return string.char(0,         -- only 53 bits from double
-                           math.floor(n / 0x1000000000000) % 0x100,
-                           math.floor(n / 0x10000000000) % 0x100,
-                           math.floor(n / 0x100000000) % 0x100,
-                           math.floor(n / 0x1000000) % 0x100,
-                           math.floor(n / 0x10000) % 0x100,
-                           math.floor(n / 0x100) % 0x100,
-                           n % 0x100)
+        first_byte = 0
     else
-        return string.char(0xFF,      -- only 53 bits from double
-                           math.floor(n / 0x1000000000000) % 0x100,
-                           math.floor(n / 0x10000000000) % 0x100,
-                           math.floor(n / 0x100000000) % 0x100,
-                           math.floor(n / 0x1000000) % 0x100,
-                           math.floor(n / 0x10000) % 0x100,
-                           math.floor(n / 0x100) % 0x100,
-                           n % 0x100)
+        first_byte = 0xFF
     end
+
+    return string.char(first_byte, -- only 53 bits from double
+                       math.floor(n / 0x1000000000000) % 0x100,
+                       math.floor(n / 0x10000000000) % 0x100,
+                       math.floor(n / 0x100000000) % 0x100,
+                       math.floor(n / 0x1000000) % 0x100,
+                       math.floor(n / 0x10000) % 0x100,
+                       math.floor(n / 0x100) % 0x100,
+                       n % 0x100)
 end
 
 local function uuid_representation(value)
@@ -713,7 +716,6 @@ local unpackers = {
     [types.set]=read_set
 }
 
-
 local function read_value(buffer, type, short)
     local bytes
     if short then
@@ -823,23 +825,26 @@ function _M.startup(self)
 end
 
 local function parse_metadata(buffer)
+    -- Flags parsing
     local flags = read_int(buffer)
-    local global_tables_spec = hasbit(flags, bit(1))
-    local has_more_pages = hasbit(flags, bit(2))
+    local global_tables_spec = hasbit(flags, rows_flags.GLOBAL_TABLES_SPEC)
+    local has_more_pages = hasbit(flags, rows_flags.HAS_MORE_PAGES)
     local columns_count = read_int(buffer)
 
+    -- Paging metadata
     local paging_state
     if has_more_pages then
         paging_state = read_bytes(buffer)
     end
 
-    local global_keyspace_name = nil
-    local global_table_name = nil
+    -- global_tables_spec metadata
+    local global_keyspace_name, global_table_name
     if global_tables_spec then
         global_keyspace_name = read_string(buffer)
         global_table_name = read_string(buffer)
     end
 
+    -- Columns metadata
     local columns = {}
     for j = 1, columns_count do
         local ksname = global_keyspace_name
@@ -856,7 +861,13 @@ local function parse_metadata(buffer)
             type = read_option(buffer)
         }
     end
-    return {columns_count=columns_count, columns=columns, paging_state=paging_state}
+
+    return {
+        columns_count=columns_count,
+        columns=columns,
+        has_more_pages=has_more_pages,
+        paging_state=paging_state
+    }
 end
 
 local function parse_rows(buffer, metadata)
@@ -1011,6 +1022,7 @@ function _M.execute(self, query, args, options)
         local metadata = parse_metadata(buffer)
         result = parse_rows(buffer, metadata)
         result.type = "ROWS"
+        result.has_more_pages = metadata.has_more_pages
         result.paging_state = metadata.paging_state
     elseif kind == result_kinds.SET_KEYSPACE then
         result = {

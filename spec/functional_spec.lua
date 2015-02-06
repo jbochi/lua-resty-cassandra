@@ -314,19 +314,36 @@ describe("cassandra", function()
     end)
     it("should have a default page size", function()
       local rows, err = session:execute("SELECT * FROM pagination_test_table")
+      assert.falsy(err)
       assert.same(100, #rows)
     end)
     it("should be an overridable option", function()
       local rows, err = session:execute("SELECT * FROM pagination_test_table", nil, {page_size=200})
+      assert.falsy(err)
       assert.same(200, #rows)
     end)
-    it("should return a paging_state", function()
+    it("should return metadata flags", function()
+      -- Incomplete page
       local rows, err = session:execute("SELECT * FROM pagination_test_table")
+      assert.falsy(err)
+      assert.is_true(rows.has_more_pages)
+      assert.truthy(rows.paging_state)
+
+      -- Complete page
+      local rows, err = session:execute("SELECT * FROM pagination_test_table", nil, {page_size=500})
+      assert.falsy(err)
+      assert.is_not_true(rows.has_more_pages)
+      assert.falsy(rows.paging_state)
+    end)
+    it("should fetch the next page by passing a paging_state option", function()
+      local rows, err = session:execute("SELECT * FROM pagination_test_table")
+      assert.falsy(err)
       assert.same(100, #rows)
 
       rows, err = session:execute("SELECT * FROM pagination_test_table", nil, {
         paging_state=rows.paging_state
       })
+      assert.falsy(err)
       assert.same(100, #rows)
     end)
     after_each(function()
@@ -346,9 +363,7 @@ describe("cassandra", function()
     end)
     it("should be possible to increment and get value back", function()
       session:execute([[
-        UPDATE counter_test_table
-        SET value = value + ?
-        WHERE key = ?
+        UPDATE counter_test_table SET value = value + ? WHERE key = ?
       ]], {{type="counter", value=10}, "key"})
       local rows, err = session:execute("SELECT value FROM counter_test_table WHERE key = 'key'")
       assert.same(1, #rows)
@@ -356,9 +371,7 @@ describe("cassandra", function()
     end)
     it("should be possible to decrement and get value back", function()
       session:execute([[
-        UPDATE counter_test_table
-        SET value = value + ?
-        WHERE key = ?
+        UPDATE counter_test_table SET value = value + ? WHERE key = ?
       ]], {{type="counter", value=-10}, "key"})
       local rows, err = session:execute("SELECT value FROM counter_test_table WHERE key = 'key'")
       assert.same(1, #rows)
