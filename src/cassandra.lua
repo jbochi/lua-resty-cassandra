@@ -7,6 +7,10 @@ _M.version = "0.0.1"
 
 local CQL_VERSION = "3.0.0"
 
+--
+-- PROTOCOL BITMASKS AND TYPES
+--
+
 local version_codes = {
     REQUEST=0x02,
     RESPONSE=0x82
@@ -69,6 +73,24 @@ local result_kinds = {
     SCHEMA_CHANGE=0x05
 }
 
+local error_codes = {
+    [0x0000]= "Server error",
+    [0x000A]= "Protocol error",
+    [0x0100]= "Bad credentials",
+    [0x1000]= "Unavailable exception",
+    [0x1001]= "Overloaded",
+    [0x1002]= "Is_bootstrapping",
+    [0x1003]= "Truncate_error",
+    [0x1100]= "Write_timeout",
+    [0x1200]= "Read_timeout",
+    [0x2000]= "Syntax_error",
+    [0x2100]= "Unauthorized",
+    [0x2200]= "Invalid",
+    [0x2300]= "Config_error",
+    [0x2400]= "Already_exists",
+    [0x2500]= "Unprepared"
+}
+
 local types = {
     custom=0x00,
     ascii=0x01,
@@ -92,7 +114,7 @@ local types = {
     set=0x22
 }
 
--- create function for type annotation
+-- create functions for type annotations
 for key, value in pairs(types) do
     _M[key] = function(value)
         return {type=key, value=value}
@@ -100,26 +122,6 @@ for key, value in pairs(types) do
 end
 
 _M.null = {type="null", value=nil}
-
-local error_codes = {
-    [0x0000]= "Server error",
-    [0x000A]= "Protocol error",
-    [0x0100]= "Bad credentials",
-    [0x1000]= "Unavailable exception",
-    [0x1001]= "Overloaded",
-    [0x1002]= "Is_bootstrapping",
-    [0x1003]= "Truncate_error",
-    [0x1100]= "Write_timeout",
-    [0x1200]= "Read_timeout",
-    [0x2000]= "Syntax_error",
-    [0x2100]= "Unauthorized",
-    [0x2200]= "Invalid",
-    [0x2300]= "Config_error",
-    [0x2400]= "Already_exists",
-    [0x2500]= "Unprepared"
-}
-
-local mt = { __index = _M }
 
 -- see: http://en.wikipedia.org/wiki/Fisher-Yates_shuffle
 local function shuffle(t)
@@ -137,6 +139,8 @@ end
 ---
 --- SOCKET METHODS
 ---
+
+local mt = { __index = _M }
 
 function _M.new(self)
     math.randomseed(ngx and ngx.time() or os.time())
@@ -156,6 +160,7 @@ function _M.new(self)
     if not sock then
         return nil, err
     end
+
     return setmetatable({ sock = sock }, mt)
 end
 
@@ -956,15 +961,20 @@ function _M.prepare(self, query, options)
     return result
 end
 
+-- Default query options
+local default_options = {
+    consistency_level = consistency.ONE,
+    page_size = 5000
+}
+
 function _M.execute(self, query, args, options)
     if not options then options = {} end
 
     -- Default options
-    if not options.consistency_level then
-        options.consistency_level = consistency.ONE
-    end
-    if not options.page_size then
-        options.page_size = 100
+    for k,v in pairs(default_options) do
+        if options[k] == nil then
+            options[k] = v
+        end
     end
 
     -- Determine if query is a query, statement, or batch
