@@ -326,25 +326,29 @@ describe("cassandra", function()
       -- Incomplete page
       local rows, err = session:execute("SELECT * FROM pagination_test_table")
       assert.falsy(err)
-      assert.is_true(rows.has_more_pages)
-      assert.truthy(rows.paging_state)
+      assert.is_true(rows.meta.has_more_pages)
+      assert.truthy(rows.meta.paging_state)
 
       -- Complete page
       local rows, err = session:execute("SELECT * FROM pagination_test_table", nil, {page_size=500})
       assert.falsy(err)
-      assert.is_not_true(rows.has_more_pages)
-      assert.falsy(rows.paging_state)
+      assert.is_not_true(rows.meta.has_more_pages)
+      assert.falsy(rows.meta.paging_state)
     end)
     it("should fetch the next page by passing a paging_state option", function()
-      local rows, err = session:execute("SELECT * FROM pagination_test_table")
+      local rows_1, err = session:execute("SELECT * FROM pagination_test_table")
       assert.falsy(err)
-      assert.same(100, #rows)
+      assert.same(100, #rows_1)
 
-      rows, err = session:execute("SELECT * FROM pagination_test_table", nil, {
-        paging_state=rows.paging_state
+      local rows_2, err = session:execute("SELECT * FROM pagination_test_table", nil, {
+        paging_state=rows_1.meta.paging_state
       })
       assert.falsy(err)
-      assert.same(100, #rows)
+      assert.same(100, #rows_2)
+      assert.are_not.same(rows_1, rows_2)
+    end)
+    it("should have an auto_paging option", function()
+      pending("TODO: once implemented")
     end)
     after_each(function()
       session:execute("DROP TABLE pagination_test_table")

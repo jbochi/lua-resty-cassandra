@@ -782,10 +782,6 @@ end
 --- http://ricilake.blogspot.com.br/2007/10/iterating-bits-in-lua.html
 ---
 
-local function bit(p)
-  return 2 ^ (p - 1)
-end
-
 local function hasbit(x, p)
   return x % (p + p) >= p
 end
@@ -947,7 +943,12 @@ function _M.prepare(self, query, options)
         local metadata = parse_metadata(buffer)
         local result_metadata = parse_metadata(buffer)
         assert(buffer.pos == #(buffer.str) + 1)
-        result = {type="PREPARED", id=id, metadata=metadata, result_metadata=result_metadata}
+        result = {
+            type="PREPARED",
+            id=id,
+            metadata=metadata,
+            result_metadata=result_metadata
+        }
     else
         error("Invalid result kind")
     end
@@ -957,6 +958,8 @@ end
 
 function _M.execute(self, query, args, options)
     if not options then options = {} end
+
+    -- Default options
     if not options.consistency_level then
         options.consistency_level = consistency.ONE
     end
@@ -964,7 +967,7 @@ function _M.execute(self, query, args, options)
         options.page_size = 100
     end
 
-    -- Determine if query is query, statement, or batch
+    -- Determine if query is a query, statement, or batch
     local op_code, query_repr
     if type(query) == "string" then
         op_code = op_codes.QUERY
@@ -977,33 +980,34 @@ function _M.execute(self, query, args, options)
         query_repr = short_bytes_representation(query.id)
     end
 
+
     -- Flags of the <query_parameters>
-    local flags = 0
+    local flags_repr = 0
 
     if args then
-        flags = setbit(flags, query_flags.VALUES)
+        flags_repr = setbit(flags_repr, query_flags.VALUES)
     end
 
     local result_page_size = ""
     if options.page_size > 0 then
-        flags = setbit(flags, query_flags.PAGE_SIZE)
+        flags_repr = setbit(flags_repr, query_flags.PAGE_SIZE)
         result_page_size = int_representation(options.page_size)
     end
 
     local paging_state = ""
     if options.paging_state then
-        flags = setbit(flags, query_flags.PAGING_STATE)
+        flags_repr = setbit(flags_repr, query_flags.PAGING_STATE)
         paging_state = bytes_representation(options.paging_state)
     end
 
     -- <query_parameters>: <consistency><flags>[<value><...>][<result_page_size>][<paging_state>]
-    local query_parameters = short_representation(options.consistency_level) .. string.char(flags) .. values_representation(args) .. result_page_size .. paging_state
+    local query_parameters = short_representation(options.consistency_level) .. string.char(flags_repr) .. values_representation(args) .. result_page_size .. paging_state
 
     -- frame body: <query><query_parameters>
-    local body = query_repr .. query_parameters
+    local frame_body = query_repr .. query_parameters
 
     -- Send frame
-    local response, err = send_frame_and_get_response(self, op_code, body, options.tracing)
+    local response, err = send_frame_and_get_response(self, op_code, frame_body, options.tracing)
 
     -- Check response errors
     if not response then
@@ -1017,24 +1021,32 @@ function _M.execute(self, query, args, options)
     local buffer = response.buffer
     local kind = read_int(buffer)
     if kind == result_kinds.VOID then
-        result = {type="VOID"}
+        result = {
+            type = "VOID"
+        }
     elseif kind == result_kinds.ROWS then
         local metadata = parse_metadata(buffer)
         result = parse_rows(buffer, metadata)
         result.type = "ROWS"
-        result.has_more_pages = metadata.has_more_pages
-        result.paging_state = metadata.paging_state
+        result.meta = {
+            has_more_pages = metadata.has_more_pages,
+            paging_state = metadata.paging_state
+        }
+        -- TODO: if auto_paging option is set, return an iterator which
+        -- keeps calling the next pages and return page by page to the user.
+        -- Similar to "Handling Paged Results" here:
+        -- https://datastax.github.io/python-driver/query_paging.html
     elseif kind == result_kinds.SET_KEYSPACE then
         result = {
-            type="SET_KEYSPACE",
-            keyspace= read_string(buffer)
+            type = "SET_KEYSPACE",
+            keyspace = read_string(buffer)
         }
     elseif kind == result_kinds.SCHEMA_CHANGE then
         result = {
-            type="SCHEMA_CHANGE",
-            change=read_string(buffer),
-            keyspace=read_string(buffer),
-            table=read_string(buffer)
+            type = "SCHEMA_CHANGE",
+            change = read_string(buffer),
+            keyspace = read_string(buffer),
+            table = read_string(buffer)
         }
     else
         error(string.format("Invalid result kind: %x", kind))
