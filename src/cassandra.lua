@@ -963,8 +963,9 @@ end
 
 -- Default query options
 local default_options = {
-    consistency_level = consistency.ONE,
-    page_size = 5000
+    consistency_level=consistency.ONE,
+    page_size=5000,
+    auto_paging=false
 }
 
 function _M.execute(self, query, args, options)
@@ -1043,31 +1044,27 @@ function _M.execute(self, query, args, options)
     local kind = read_int(buffer)
     if kind == result_kinds.VOID then
         result = {
-            type = "VOID"
+            type="VOID"
         }
     elseif kind == result_kinds.ROWS then
         local metadata = parse_metadata(buffer)
         result = parse_rows(buffer, metadata)
         result.type = "ROWS"
         result.meta = {
-            has_more_pages = metadata.has_more_pages,
-            paging_state = metadata.paging_state
+            has_more_pages=metadata.has_more_pages,
+            paging_state=metadata.paging_state
         }
-        -- TODO: if auto_paging option is set, return an iterator which
-        -- keeps calling the next pages and return page by page to the user.
-        -- Similar to "Handling Paged Results" here:
-        -- https://datastax.github.io/python-driver/query_paging.html
     elseif kind == result_kinds.SET_KEYSPACE then
         result = {
-            type = "SET_KEYSPACE",
-            keyspace = read_string(buffer)
+            type="SET_KEYSPACE",
+            keyspace=read_string(buffer)
         }
     elseif kind == result_kinds.SCHEMA_CHANGE then
         result = {
-            type = "SCHEMA_CHANGE",
-            change = read_string(buffer),
-            keyspace = read_string(buffer),
-            table = read_string(buffer)
+            type="SCHEMA_CHANGE",
+            change=read_string(buffer),
+            keyspace=read_string(buffer),
+            table=read_string(buffer)
         }
     else
         error(string.format("Invalid result kind: %x", kind))
