@@ -1,4 +1,4 @@
--- Implementation of CQL Binary protocol V2 available:
+-- Implementation of CQL Binary protocol V2 available at:
 -- https://git-wip-us.apache.org/repos/asf?p=cassandra.git;a=blob_plain;f=doc/native_protocol_v2.spec;hb=HEAD
 
 local _M = {}
@@ -977,6 +977,18 @@ function _M.execute(self, query, args, options)
         end
     end
 
+    if options.auto_paging then
+        local page = 0
+        return function(query, paging_state)
+            local rows, err = self:execute(query, args, {
+                page_size=options.page_size,
+                paging_state=paging_state
+            })
+            page = page + 1
+            return rows.meta.paging_state, rows, page
+        end, query, nil
+    end
+
     -- Determine if query is a query, statement, or batch
     local op_code, query_repr
     if type(query) == "string" then
@@ -989,7 +1001,6 @@ function _M.execute(self, query, args, options)
         op_code = op_codes.EXECUTE
         query_repr = short_bytes_representation(query.id)
     end
-
 
     -- Flags of the <query_parameters>
     local flags_repr = 0

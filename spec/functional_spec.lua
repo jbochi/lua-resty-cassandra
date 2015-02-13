@@ -344,7 +344,16 @@ describe("cassandra", function()
       assert.are_not.same(rows_1, rows_2)
     end)
     it("should have an auto_paging option", function()
-      pending("TODO: once implemented")
+      local page_tracker = 0
+      local expected_number_of_pages = 20
+
+      for _,rows,page in session:execute("SELECT * FROM pagination_test_table", nil, {page_size=10, auto_paging=true}) do
+        page_tracker = page_tracker + 1
+        assert.are.same(page_tracker, page)
+        assert.are.same(10, #rows)
+      end
+
+      assert.are.same(expected_number_of_pages, page_tracker)
     end)
     after_each(function()
       session:execute("DROP TABLE pagination_test_table")
