@@ -123,19 +123,6 @@ end
 
 _M.null = {type="null", value=nil}
 
--- see: http://en.wikipedia.org/wiki/Fisher-Yates_shuffle
-local function shuffle(t)
-    local n = #t
-    while n >= 2 do
-        -- n is now the last pertinent index
-        local k = math.random(n) -- 1 <= k <= n
-        -- Quick swap
-        t[n], t[k] = t[k], t[n]
-        n = n - 1
-    end
-    return t
-end
-
 ---
 --- SOCKET METHODS
 ---
@@ -173,9 +160,24 @@ function _M.set_timeout(self, timeout)
     return sock:settimeout(timeout)
 end
 
+
+local function shuffle(t)
+    -- see: http://en.wikipedia.org/wiki/Fisher-Yates_shuffle
+    local n = #t
+    while n >= 2 do
+        local k = math.random(n)
+        t[n], t[k] = t[k], t[n]
+        n = n - 1
+    end
+    return t
+end
+
 function _M.connect(self, contact_points, port)
     if port == nil then port = 9042 end
     if type(contact_points) == 'table' then
+        -- shuffle the contact points so we don't try
+        -- to connect always on the same order, avoiding
+        -- pressure on the same node cordinator
         shuffle(contact_points)
     else
         contact_points = {contact_points}
