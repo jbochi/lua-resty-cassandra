@@ -47,8 +47,6 @@ describe("cassandra", function()
     assert.truthy(err)
   end)
 
-
-
   describe("query result", function()
     local rows, err
 
@@ -303,6 +301,65 @@ describe("cassandra", function()
     end)
   end
 
+  describe("pagination", function()
+    before_each(function()
+      session:set_keyspace("lua_tests")
+      local ok, err = session:execute [[ CREATE TABLE pagination_test_table(
+                          key int PRIMARY KEY,
+                          value varchar) ]]
+      for i = 1, 200 do
+        session:execute([[ INSERT INTO pagination_test_table(key, value)
+                            VALUES(?,?) ]], { i, "test" })
+      end
+    end)
+    it("should support a page_size option", function()
+      local rows, err = session:execute("SELECT * FROM pagination_test_table", nil, {page_size=200})
+      assert.falsy(err)
+      assert.same(200, #rows)
+    end)
+    it("should return metadata flags", function()
+      -- Incomplete page
+      local rows, err = session:execute("SELECT * FROM pagination_test_table", nil, {page_size=100})
+      assert.falsy(err)
+      assert.is_true(rows.meta.has_more_pages)
+      assert.truthy(rows.meta.paging_state)
+
+      -- Complete page
+      local rows, err = session:execute("SELECT * FROM pagination_test_table", nil, {page_size=500})
+      assert.falsy(err)
+      assert.is_not_true(rows.meta.has_more_pages)
+      assert.falsy(rows.meta.paging_state)
+    end)
+    it("should fetch the next page by passing a paging_state option", function()
+      local rows_1, err = session:execute("SELECT * FROM pagination_test_table", nil, {page_size=100})
+      assert.falsy(err)
+      assert.same(100, #rows_1)
+
+      local rows_2, err = session:execute("SELECT * FROM pagination_test_table", nil, {
+        page_size=500,
+        paging_state=rows_1.meta.paging_state
+      })
+      assert.falsy(err)
+      assert.same(100, #rows_2)
+      assert.are_not.same(rows_1, rows_2)
+    end)
+    it("should have an auto_paging option", function()
+      local page_tracker = 0
+      local expected_number_of_pages = 20
+
+      for _,rows,page in session:execute("SELECT * FROM pagination_test_table", nil, {page_size=10, auto_paging=true}) do
+        page_tracker = page_tracker + 1
+        assert.are.same(page_tracker, page)
+        assert.are.same(10, #rows)
+      end
+
+      assert.are.same(expected_number_of_pages, page_tracker)
+    end)
+    after_each(function()
+      session:execute("DROP TABLE pagination_test_table")
+    end)
+  end)
+
   describe("counters", function()
     before_each(function()
       session:set_keyspace("lua_tests")
@@ -315,9 +372,7 @@ describe("cassandra", function()
     end)
     it("should be possible to increment and get value back", function()
       session:execute([[
-        UPDATE counter_test_table
-        SET value = value + ?
-        WHERE key = ?
+        UPDATE counter_test_table SET value = value + ? WHERE key = ?
       ]], {{type="counter", value=10}, "key"})
       local rows, err = session:execute("SELECT value FROM counter_test_table WHERE key = 'key'")
       assert.same(1, #rows)
@@ -325,9 +380,7 @@ describe("cassandra", function()
     end)
     it("should be possible to decrement and get value back", function()
       session:execute([[
-        UPDATE counter_test_table
-        SET value = value + ?
-        WHERE key = ?
+        UPDATE counter_test_table SET value = value + ? WHERE key = ?
       ]], {{type="counter", value=-10}, "key"})
       local rows, err = session:execute("SELECT value FROM counter_test_table WHERE key = 'key'")
       assert.same(1, #rows)
