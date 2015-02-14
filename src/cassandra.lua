@@ -3,7 +3,7 @@
 
 local _M = {}
 
-_M.version = "0.0.1"
+_M.version = "0.5-snapshot"
 
 local CQL_VERSION = "3.0.0"
 
