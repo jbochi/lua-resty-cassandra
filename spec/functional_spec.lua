@@ -347,7 +347,7 @@ describe("cassandra", function()
       local page_tracker = 0
       local expected_number_of_pages = 20
 
-      for _,rows,page in session:execute("SELECT * FROM pagination_test_table", nil, {page_size=10, auto_paging=true}) do
+      for _, rows, page in session:execute("SELECT * FROM pagination_test_table", nil, {page_size=10, auto_paging=true}) do
         page_tracker = page_tracker + 1
         assert.are.same(page_tracker, page)
         assert.are.same(10, #rows)

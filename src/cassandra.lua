@@ -972,7 +972,7 @@ function _M.execute(self, query, args, options)
     if not options then options = {} end
 
     -- Default options
-    for k,v in pairs(default_options) do
+    for k, v in pairs(default_options) do
         if options[k] == nil then
             options[k] = v
         end
