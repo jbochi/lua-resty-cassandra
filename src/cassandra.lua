@@ -146,7 +146,9 @@ function _M.new(self)
     math.randomseed(ngx and ngx.time() or os.time())
 
     local tcp
-    if ngx and ngx.get_phase() ~= "init" then
+    local inspect = require "inspect"
+    print(inspect(ngx))
+    if ngx and ngx.get_phase ~= nil and ngx.get_phase() ~= "init" then
         -- openresty
         tcp = ngx.socket.tcp
     else
