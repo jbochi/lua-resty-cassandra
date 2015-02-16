@@ -1,48 +1,46 @@
-lua-resty-cassandra
-===================
+# lua-resty-cassandra
 
-[![Build Status](https://travis-ci.org/jbochi/lua-resty-cassandra.svg?branch=master)](https://travis-ci.org/jbochi/lua-resty-cassandra)
+[![Build Status][badge-travis-image]][badge-travis-url]
+![Module Version][badge-version-image]
 
 Pure Lua Cassandra client using CQL binary protocol v2.
 
 It is 100% non-blocking if used in Nginx/Openresty but can also be used with luasocket.
 
+## Installation
 
-Installation
-------------
+Installation through [luarocks][luarocks-url] is recommended:
 
-For usage inside nginx, just copy the `src/cassandra.lua` file.
+```bash
+$ luarocks install cassandra
+```
 
-Otherwise, run:
-
-    $ luarocks install cassandra
-
-
-API
----
+## Usage
 
 Overview:
+
 ```lua
-cassandra = require("cassandra")
-session = cassandra.new()
-session:set_timeout(1000)  -- 1000ms timeout
-connected, err = session:connect("127.0.0.1", 9042)
+local cassandra = require "cassandra"
+
+local session = cassandra.new()
+session:set_timeout(1000) -- 1000ms timeout
+
+local connected, err = session:connect("127.0.0.1", 9042)
 
 session:set_keyspace("lua_tests")
 
 -- simple query
-local table_created, err = session:execute([[
-    CREATE TABLE users (
-      user_id uuid PRIMARY KEY,
-      name varchar,
-      age int
-    )
-]])
+local table_created, err = session:execute[[
+  CREATE TABLE users(
+    user_id uuid PRIMARY KEY,
+    name varchar,
+    age int
+  )
+]]
 
 -- query with arguments
 local ok, err = session:execute([[
-  INSERT INTO users (name, age, user_id)
-  VALUES (?, ?, ?)
+  INSERT INTO users(name, age, user_id) VALUES(?, ?, ?)
 ]], {"John O'Reilly", 42, cassandra.uuid("1144bada-852c-11e3-89fb-e0b9a54a6d11")})
 
 
@@ -56,92 +54,193 @@ ngx.say(user.user_id) -- "1144bada-852c-11e3-89fb-e0b9a54a6d11"
 ngx.say(user.age) -- 42
 ```
 
-You can check more examples on the [tests](https://github.com/jbochi/lua-resty-cassandra/blob/master/spec/functional_spec.lua).
+You can check more examples in the [tests](https://github.com/jbochi/lua-resty-cassandra/blob/master/spec/functional_spec.lua) or [here][anchor-examples].
+ 
+## Socket methods
 
+### session, err = cassandra.new()
 
-### Methods
+Creates a new session. Create a socket with the cosocket API if available, fallback on luasocket otherwise.
 
-#### session, err = cassandra.new()
+> **Return values:**
+> 
+> * `session`: A lua-resty-cassandra session.
+> * `err`: Any error encountered during the socket creation.
 
-Creates a new session.
+### session:set_timeout(timeout)
 
-#### ok, err = session:set_timeout(timeout)
+Sets timeout (in miliseconds). Uses Nginx [tcpsock:settimeout](http://wiki.nginx.org/HttpLuaModule#tcpsock:settimeout).
 
-Sets timeout (in miliseconds).
+> **Parameters:**
+> 
+> * `timeout`: A number being the timeout in miliseconds
 
-#### ok, err = session:connect({contact_points}, port)
+### ok, err = session:connect(contact_points, port)
 
-Connect to a single host or to a handle host in an array of contact points at the given port.
+Connects to a single or multiple hosts at the given port.
 
-#### ok, err = session:setkeepalive(max_idle_timeout, pool_size)  -- Nginx only
+> **Parameters:**
+> 
+> * `contact_points`: A string or an array of strings (hosts) to connect to.
+> * `port`: The port number
+
+> **Return values:**
+> 
+> * `ok`: true if connected, false otherwise. Nil of the session doesn't have a socket.
+> * `err`: Any encountered error.
+
+### ok, err = session:setkeepalive(max_idle_timeout, pool_size)  -- Nginx only
 
 Puts the current Cassandra connection immediately into the ngx_lua cosocket connection pool.
 
-You can specify the max idle timeout (in ms) when the connection is in the pool and the maximal size of the pool every nginx worker process.
+**Note**: Only call this method in the place you would have called the close method instead. Calling this method will immediately turn the current cassandra session object into the closed state. Any subsequent operations other than connect() on the current objet will return the closed error.
 
-In case of success, returns `1`. In case of errors, returns `nil` with a string describing the error.
+> **Parameters:**
+> 
+> * `max_idle_timeout`: Max idle timeout (in ms) when the connection is in the pool
+> * `pool_size`: Maximal size of the pool every nginx worker process.
 
-Only call this method in the place you would have called the close method instead. Calling this method will immediately turn the current cassandra session object into the closed state. Any subsequent operations other than connect() on the current objet will return the closed error.
+> **Return values:**
+> 
+> * `ok`: `1` if success, nil otherwise.
+> * `err`: Encountered error if any
 
-#### times, err = session:get_reused_times() -- Nginx only
+### times, err = session:get_reused_times() -- Nginx only
 
 This method returns the (successfully) reused times for the current connection. In case of error, it returns `nil` and a string describing the error.
 
-If the current connection does not come from the built-in connection pool, then this method always returns `0`, that is, the connection has never been reused (yet). If the connection comes from the connection pool, then the return value is always non-zero. So this method can also be used to determine if the current connection comes from the pool.
+**Note:** If the current connection does not come from the built-in connection pool, then this method always returns `0`, that is, the connection has never been reused (yet). If the connection comes from the connection pool, then the return value is always non-zero. So this method can also be used to determine if the current connection comes from the pool.
 
-#### ok, err = session:close()
+> **Return values:**
+> 
+> * `times`: Number of times the current connection was successfully reused, nil if error
+> * `err`: Encountered error if any
+
+### ok, err = session:close()
 
 Closes the current connection and returns the status.
 
-In case of success, returns `1`. In case of errors, returns nil with a string describing the error.
+> **Return values:**
+>
+> * `ok`: `1` if success, nil otherwise.
+> * `err`: Encountered error if any
 
-#### stmt, err = session:prepare(query, options)
+## Client methods
 
-Prepare a statement for later execution. `option` are the same options available on `execute`
+### stmt, err = session:prepare(query, options)
 
-#### result, err = session:execute(query, args, options)
+Prepare a statement for later execution.
 
-Execute a query or previously prepared statement. `args` is an array of arguments that can be optionally
-type annoted. For example, with `cassandra.bigint(4)`. If there is no annotation, the driver will try to
-infer a type. Since integer numbers are serialized as `int` with 4 bytes, Cassandra would return an error 
-if we tried to insert it in a `bigint` column. `options` is a table that can contain two types of keys:
+> **Parameters:**
+> 
+> * `query`: A string representing a query to prepare.
+> * `options`: The same options available on `:execute()`.
 
-* `consistency_level`: for example `cassandra.consistency.ONE`
-* `tracing`: enables tracing for this query. In this case, the result table will contain a key named `tracing_id` with an uuid of the tracing session.
+> **Return values:**
+> 
+> * `stmt`: A prepareed statement to be used by `:execute()`, nil if the preparation failed.
+> * `err`: Encountered error if any.
 
+### result, err = session:execute(query, args, options)
 
-#### ok, err = session:set_keyspace(keyspace_name)
+Execute a query or previously prepared statement.
+
+> **Parameters:**
+> 
+> * `query`: A string representing a query or a previously prepared statement.
+> * `args`: An of arguments to bind to the query. THose arguments can be type annotated (example: `cassandra.bigint(4)`. If there is no annotation, the driver will try to infer a type. Since integer numbers are serialized as int with 4 bytes, Cassandra would return an error if we tried to insert it in a bigint column.
+> * `options` is a table of options:
+>   * `consistency_level`: for example `cassandra.consistency.ONE`
+>   * `tracing`: if set to true, enables tracing for this query. In this case, the result table will contain a key named `tracing_id` with an uuid of the tracing session.
+>   * `page_size`: Maximum size of the page to fetch (default: 5000).
+>   * `auto_paging`: If set to true, `execute` will return an iterator. See [example below][anchor-examples] on how to use auto pagination.
+
+> **Return values:**
+> 
+> * `result`: A table containing the result of this query if successful, ni otherwise. The table can contain additional keys:
+>   * `type`: Type of the result set, can either be "VOID", "ROWS", "SET_KEYSPACE" or "SCHEMA_CHANGE".
+>   * `meta`: If the result type is "ROWS" and the result has more pages that haven't been returned, this property will contain 2 values: `has_more_pages` and `paging_state`. See [example below][anchor-examples] on how to use pagination.
+> * `err`: Encountered error if any.
+
+### ok, err = session:set_keyspace(keyspace_name)
 
 Sets session keyspace to the given `keyspace_name`.
 
+> **Parameters:**
+> 
+> * `keyspace_name`: Name of the keyspace to use.
 
-#### trace, err = session:get_trace(result)
+> **Return values:**
+>
+> See `:execute`
 
-Return the trace of a given result, if possible. The trace is a table with the following keys (from `system_traces.sessions` and `system_traces.events` [system tracing tables](http://www.datastax.com/dev/blog/advanced-request-tracing-in-cassandra-1-2):
+### trace, err = session:get_trace(result)
 
-* coordinator
-* duration
-* parameters
-* request
-* started_at
-* events: an array of tables with the following keys:
-    * event_id
-    * activity
-    * source
-    * source_elapsed
-    * thread
+Return the trace of a given result, if possible.
 
+> **Parameters:**
+> 
+> * `result`: A previous query result.
 
-Running tests
--------------
+> **Return values:**
+> 
+> `trace`: is a table with the following keys (from `system_traces.sessions` and `system_traces.events` [system tracing tables](http://www.datastax.com/dev/blog/advanced-request-tracing-in-cassandra-1-2):
+>
+> * coordinator
+> * duration
+> * parameters
+> * request
+> * started_at
+> * events: an array of tables with the following keys:
+>    * event_id
+>    * activity
+>    * source
+>    * source_elapsed
+>    * thread
+> `err`: Encountered error if any.
+
+## Examples
+
+Pagination might be very useful to build web services:
+
+```lua
+-- Assuming our users table contains 1000 rows
+
+local query = "SELECT * FROM users"
+local rows, err = session:execute(query, nil, {page_size = 500}) -- default page_size is 5000
+
+assert.same(500, #rows) -- rows contains the 500 first rows
+
+if rows.meta.has_more_pages then
+	local next_rows, err = session:execute(query, nil, {paging_state = rows.meta.paging_state})
+	
+	assert.same(500, #next_rows) -- next_rows contains the next (and last) 500 rows
+end
+```
+
+Automated pagination:
+
+```lua
+-- Assuming our users table now contains 10.000 rows
+
+local query = "SELECT * FROM users"
+
+for _, rows, page in session:execute(query, nil, {auto_paging=true}) do
+  assert.same(5000, #rows) -- rows contains 5000 rows on each iteration in this case
+  -- page will be 1 on the first iteration, 2 on the second
+  -- _ (the first for argument) is the current paging_state used to fetch the rows
+end
+```
+
+## Running tests
 
 We use `busted` and require `luasocket` to mock `ngx.socket.tcp()`. To run the tests, start a local cassandra instance and run:
 
-    $ busted
+```bash
+$ busted
+```
 
-
-Contributors
-------------
+## Contributors
 
 Juarez Bochi (@jbochi)
 
@@ -150,3 +249,12 @@ Leandro Moreira (@leandromoreira) -> Added support for doubles
 Marco Palladino (@thefosk)
 
 Thibault Charbonnier (@thibaultCha) -> Added paging
+
+[badge-travis-url]: https://travis-ci.org/jbochi/lua-resty-cassandra
+[badge-travis-image]: https://img.shields.io/travis/jbochi/lua-resty-cassandra.svg?style=flat
+
+[badge-version-image]: https://img.shields.io/badge/version-0.4--1-blue.svg?style=flat
+
+[luarocks-url]: https://luarocks.org
+
+[anchor-examples]: #examples
