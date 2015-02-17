@@ -138,3 +138,15 @@ Running tests
 We use `busted` and require `luasocket` to mock `ngx.socket.tcp()`. To run the tests, start a local cassandra instance and run:
 
     $ busted
+
+
+Contributors
+------------
+
+Juarez Bochi (@jbochi)
+
+Leandro Moreira (@leandromoreira) -> Added support for doubles
+
+Marco Palladino (@thefosk)
+
+Thibault Charbonnier (@thibaultCha) -> Added paging

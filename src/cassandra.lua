@@ -26,7 +26,7 @@ _M.null = {type="null", value=nil}
 --- SOCKET METHODS
 ---
 
-local mt = { __index = _M }
+local mt = {__index=_M}
 
 function _M.new(self)
   math.randomseed(ngx and ngx.time() or os.time())
@@ -47,7 +47,7 @@ function _M.new(self)
     return nil, err
   end
 
-  return setmetatable({ sock = sock }, mt)
+  return setmetatable({sock=sock}, mt)
 end
 
 function _M.set_timeout(self, timeout)
@@ -152,11 +152,11 @@ function _M.startup(self)
 end
 
 local batch_statement = {
-  __index = {
-    add = function(self, query, args)
+  __index={
+    add=function(self, query, args)
       table.insert(self.queries, {query=query, args=args})
     end,
-    representation = function(self)
+    representation=function(self)
       return encoding.batch_representation(self.queries)
     end,
     is_batch_statement = true
