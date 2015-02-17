@@ -1,6 +1,6 @@
-local _M = {}
-
 local constants = require("constants")
+
+local _M = {}
 
 local function big_endian_representation(num, bytes)
   if num < 0 then
@@ -277,7 +277,7 @@ local function values_representation(args)
 end
 _M.values_representation = values_representation
 
-local function batch_representation(queries)
+function _M.batch_representation(queries)
   local b = {}
   b[#b + 1] = string.char(0) -- todo: logged/unlogged/counter
   b[#b + 1] = short_representation(#queries)
@@ -295,6 +295,5 @@ local function batch_representation(queries)
   end
   return table.concat(b)
 end
-_M.batch_representation = batch_representation
 
 return _M

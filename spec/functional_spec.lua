@@ -17,6 +17,12 @@ describe("cassandra", function()
     assert.truthy(connected)
   end)
 
+  it("should return an error if attempting to connect without an initialized session", function()
+    local connected, err = cassandra.connect({}, "127.0.0.1")
+    assert.falsy(connected)
+    assert.same("session does not have a socket, create a new session first.", err)
+  end)
+
   it("should not require port for connection", function()
     local new_session = cassandra.new()
     new_session:set_timeout(1000)
