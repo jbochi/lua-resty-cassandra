@@ -30,7 +30,7 @@ local connected, err = session:connect("127.0.0.1", 9042)
 session:set_keyspace("lua_tests")
 
 -- simple query
-local table_created, err = session:execute[[
+local table_created, err = session:execute [[
   CREATE TABLE users(
     user_id uuid PRIMARY KEY,
     name varchar,
@@ -262,10 +262,11 @@ Automated pagination:
 
 local query = "SELECT * FROM users"
 
-for _, rows, page in session:execute(query, nil, {auto_paging=true}) do
+for _, rows, page, err in session:execute(query, nil, {auto_paging=true}) do
   assert.same(5000, #rows) -- rows contains 5000 rows on each iteration in this case
-  -- page will be 1 on the first iteration, 2 on the second
-  -- _ (the first for argument) is the current paging_state used to fetch the rows
+  -- page: will be 1 on the first iteration, 2 on the second
+  -- err: in case any fetch returns an error
+  -- _: (the first for argument) is the current paging_state used to fetch the rows
 end
 ```
 
