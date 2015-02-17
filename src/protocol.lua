@@ -89,10 +89,10 @@ local function parse_metadata(buffer)
     end
     local column_name = decoding.read_string(buffer)
     columns[#columns + 1] = {
-      keyspace = ksname,
-      table = tablename,
-      name = column_name,
-      type = decoding.read_option(buffer)
+      keyspace=ksname,
+      table=tablename,
+      name=column_name,
+      type=decoding.read_option(buffer)
     }
   end
 
