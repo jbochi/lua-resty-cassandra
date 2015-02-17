@@ -9,11 +9,17 @@ It is 100% non-blocking if used in Nginx/Openresty but can also be used with lua
 
 ## Installation
 
+#### Luarocks
+
 Installation through [luarocks][luarocks-url] is recommended:
 
 ```bash
 $ luarocks install cassandra
 ```
+
+#### Manual
+
+Copy the `src/` folder and require `cassandra.lua`.
 
 ## Usage
 
