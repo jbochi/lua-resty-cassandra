@@ -127,6 +127,18 @@ Closes the current connection and returns the status.
 
 ## Client methods
 
+### ok, err = session:set_keyspace(keyspace_name)
+
+Sets session keyspace to the given `keyspace_name`.
+
+> **Parameters:**
+> 
+> * `keyspace_name`: Name of the keyspace to use.
+
+> **Return values:**
+>
+> See `:execute()`
+
 ### stmt, err = session:prepare(query, options)
 
 Prepare a statement for later execution.
@@ -148,31 +160,37 @@ Execute a query or previously prepared statement.
 > **Parameters:**
 > 
 > * `query`: A string representing a query or a previously prepared statement.
-> * `args`: An of arguments to bind to the query. THose arguments can be type annotated (example: `cassandra.bigint(4)`. If there is no annotation, the driver will try to infer a type. Since integer numbers are serialized as int with 4 bytes, Cassandra would return an error if we tried to insert it in a bigint column.
+> * `args`: An array of arguments to bind to the query. Those arguments can be type annotated (example: `cassandra.bigint(4)`. If there is no annotation, the driver will try to infer a type. Since integer numbers are serialized as int with 4 bytes, Cassandra would return an error if we tried to insert it in a bigint column.
 > * `options` is a table of options:
 >   * `consistency_level`: for example `cassandra.consistency.ONE`
 >   * `tracing`: if set to true, enables tracing for this query. In this case, the result table will contain a key named `tracing_id` with an uuid of the tracing session.
 >   * `page_size`: Maximum size of the page to fetch (default: 5000).
->   * `auto_paging`: If set to true, `execute` will return an iterator. See [example below][anchor-examples] on how to use auto pagination.
+>   * `auto_paging`: If set to true, `execute` will return an iterator. See the [example below][anchor-examples] on how to use auto pagination.
 
 > **Return values:**
 > 
 > * `result`: A table containing the result of this query if successful, ni otherwise. The table can contain additional keys:
 >   * `type`: Type of the result set, can either be "VOID", "ROWS", "SET_KEYSPACE" or "SCHEMA_CHANGE".
->   * `meta`: If the result type is "ROWS" and the result has more pages that haven't been returned, this property will contain 2 values: `has_more_pages` and `paging_state`. See [example below][anchor-examples] on how to use pagination.
+>   * `meta`: If the result type is "ROWS" and the result has more pages that haven't been returned, this property will contain 2 values: `has_more_pages` and `paging_state`. See the [example below][anchor-examples] on how to use pagination.
 > * `err`: Encountered error if any.
 
-### ok, err = session:set_keyspace(keyspace_name)
+### batch, err = cassandra.BatchStatement()
 
-Sets session keyspace to the given `keyspace_name`.
+Initialized a batch statement. See the [example below][anchor-examples] on how to use batch statements.
+
+> **Return values:**
+> 
+> * `batch`: An empty batch statement on which to add operations.
+> * `err`: Encountered error if any.
+
+### batch:add(query, args)
+
+Add an operation to a batch statement. See the [example below][anchor-examples] on how to use batch statements.
 
 > **Parameters:**
 > 
-> * `keyspace_name`: Name of the keyspace to use.
-
-> **Return values:**
->
-> See `:execute`
+> * `query`: A string representing a query or a previously prepared statement.
+> * `args`: An array of arguments to bind to the query, similar to `:execute()`.
 
 ### trace, err = session:get_trace(result)
 
@@ -197,9 +215,28 @@ Return the trace of a given result, if possible.
 >    * source
 >    * source_elapsed
 >    * thread
+> 
 > `err`: Encountered error if any.
 
 ## Examples
+
+Batches:
+
+```lua
+-- Create a batch statement
+local batch = cassandra.BatchStatement()
+
+-- Add a query
+batch:add("INSERT INTO users (name, age, user_id) VALUES (?, ?, ?)",
+          {"James", 32, cassandra.uuid("2644bada-852c-11e3-89fb-e0b9a54a6d93")})
+
+-- Add a prepared statement
+local stmt, err = session:prepare("INSERT INTO users (name, age, user_id) VALUES (?, ?, ?)")
+batch:add(stmt, {"John", 45, cassandra.uuid("1144bada-852c-11e3-89fb-e0b9a54a6d11")})
+
+-- Execute the batch
+local result, err = session:execute(batch)
+```
 
 Pagination might be very useful to build web services:
 
