@@ -24,7 +24,7 @@ describe("cassandra", function()
     assert.truthy(connected)
   end)
 
-  it("should be possible to send a list of hosts for conneciton", function()
+  it("should be possible to send a list of hosts for connection", function()
     local new_session = cassandra.new()
     new_session:set_timeout(1000)
     local connected, err = new_session:connect({"localhost", "127.0.0.1"})
@@ -134,6 +134,7 @@ describe("cassandra", function()
   end)
 
   describe("a table", function()
+
     before_each(function()
       session:set_keyspace("lua_tests")
       local res, err = session:execute("SELECT columnfamily_name FROM system.schema_columnfamilies WHERE keyspace_name='lua_tests' and columnfamily_name='users'")
@@ -215,8 +216,7 @@ describe("cassandra", function()
         {"James", 32, cassandra.uuid("2644bada-852c-11e3-89fb-e0b9a54a6d93")})
 
       local stmt, err = session:prepare("INSERT INTO users (name, age, user_id) VALUES (?, ?, ?)")
-      batch:add(stmt,
-        {"John", 45, cassandra.uuid("1144bada-852c-11e3-89fb-e0b9a54a6d11")})
+      batch:add(stmt, {"John", 45, cassandra.uuid("1144bada-852c-11e3-89fb-e0b9a54a6d11")})
 
       local result, err = session:execute(batch)
       assert.falsy(err)
@@ -272,6 +272,7 @@ describe("cassandra", function()
 
   for _, type in ipairs(types) do
     describe("the type " .. type.name, function()
+
       before_each(function()
         session:set_keyspace("lua_tests")
         session:execute([[
@@ -281,6 +282,7 @@ describe("cassandra", function()
           )
         ]])
       end)
+
       it("should be possible to insert and get value back", function()
         local ok, err = session:execute([[
           INSERT INTO type_test_table (key, value)
@@ -295,6 +297,7 @@ describe("cassandra", function()
           assert.same(type.read_value ~= nil and type.read_value or type.value, rows[1].value)
         end
       end)
+
       after_each(function()
         session:execute("DROP TABLE type_test_table")
       end)
@@ -302,6 +305,7 @@ describe("cassandra", function()
   end
 
   describe("pagination", function()
+
     before_each(function()
       session:set_keyspace("lua_tests")
       local ok, err = session:execute [[ CREATE TABLE pagination_test_table(
@@ -312,11 +316,20 @@ describe("cassandra", function()
                             VALUES(?,?) ]], { i, "test" })
       end
     end)
+
+    it("should have a high default value and signal that everything is fetched", function()
+      local rows, err = session:execute("SELECT * FROM pagination_test_table")
+      assert.falsy(err)
+      assert.same(200, #rows)
+      assert.is_not_true(rows.has_more_pages)
+    end)
+
     it("should support a page_size option", function()
       local rows, err = session:execute("SELECT * FROM pagination_test_table", nil, {page_size=200})
       assert.falsy(err)
       assert.same(200, #rows)
     end)
+
     it("should return metadata flags", function()
       -- Incomplete page
       local rows, err = session:execute("SELECT * FROM pagination_test_table", nil, {page_size=100})
@@ -330,6 +343,7 @@ describe("cassandra", function()
       assert.is_not_true(rows.meta.has_more_pages)
       assert.falsy(rows.meta.paging_state)
     end)
+
     it("should fetch the next page by passing a paging_state option", function()
       local rows_1, err = session:execute("SELECT * FROM pagination_test_table", nil, {page_size=100})
       assert.falsy(err)
@@ -343,11 +357,13 @@ describe("cassandra", function()
       assert.same(100, #rows_2)
       assert.are_not.same(rows_1, rows_2)
     end)
-    it("should have an auto_paging option", function()
+
+    it("should return an iterator if given an auto_paging option", function()
       local page_tracker = 0
       local expected_number_of_pages = 20
 
-      for _, rows, page in session:execute("SELECT * FROM pagination_test_table", nil, {page_size=10, auto_paging=true}) do
+      for _, rows, page, err in session:execute("SELECT * FROM pagination_test_table", nil, {page_size=10, auto_paging=true}) do
+        assert.falsy(err)
         page_tracker = page_tracker + 1
         assert.are.same(page_tracker, page)
         assert.are.same(10, #rows)
@@ -355,12 +371,14 @@ describe("cassandra", function()
 
       assert.are.same(expected_number_of_pages, page_tracker)
     end)
+
     after_each(function()
       session:execute("DROP TABLE pagination_test_table")
     end)
   end)
 
   describe("counters", function()
+
     before_each(function()
       session:set_keyspace("lua_tests")
       session:execute([[
@@ -370,6 +388,7 @@ describe("cassandra", function()
         )
       ]])
     end)
+
     it("should be possible to increment and get value back", function()
       session:execute([[
         UPDATE counter_test_table SET value = value + ? WHERE key = ?
@@ -378,6 +397,7 @@ describe("cassandra", function()
       assert.same(1, #rows)
       assert.same(10, rows[1].value)
     end)
+
     it("should be possible to decrement and get value back", function()
       session:execute([[
         UPDATE counter_test_table SET value = value + ? WHERE key = ?
@@ -386,6 +406,7 @@ describe("cassandra", function()
       assert.same(1, #rows)
       assert.same(-10, rows[1].value)
     end)
+
     after_each(function()
       session:execute("DROP TABLE counter_test_table")
     end)

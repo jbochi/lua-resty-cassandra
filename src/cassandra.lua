@@ -59,7 +59,6 @@ function _M.set_timeout(self, timeout)
   return sock:settimeout(timeout)
 end
 
-
 local function shuffle(t)
   -- see: http://en.wikipedia.org/wiki/Fisher-Yates_shuffle
   local n = #t
@@ -209,7 +208,7 @@ function _M.execute(self, query, args, options)
         paging_state=paging_state
       })
       page = page + 1
-      return rows.meta.paging_state, rows, page
+      return rows.meta.paging_state, rows, page, err
     end, query, nil
   end
 
