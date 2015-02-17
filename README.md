@@ -144,6 +144,9 @@ Contributors
 ------------
 
 Juarez Bochi (@jbochi)
+
 Leandro Moreira (@leandromoreira) -> Added support for doubles
+
 Marco Palladino (@thefosk)
+
 Thibault Charbonnier (@thibaultCha) -> Added paging
