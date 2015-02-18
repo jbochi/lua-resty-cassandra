@@ -89,6 +89,7 @@ describe("cassandra", function()
         SELECT cql_version, native_protocol_version, release_version FROM system.local
       ]]
       assert.falsy(err)
+      assert.truthy(rows)
     end)
 
     it("should have a length", function()
@@ -96,7 +97,11 @@ describe("cassandra", function()
     end)
 
     describe("Result row", function()
-      local row = rows[1]
+      local row
+
+      before_each(function()
+        row = rows[1]
+      end)
 
       it("should access a row column by column name", function()
         assert.truthy(row.native_protocol_version == "2" or row.native_protocol_version == "3")
@@ -457,7 +462,7 @@ describe("cassandra", function()
       local batch = cassandra.BatchStatement()
 
       -- Query
-      batch:add("INSERT INTO users (name, age, user_id) VALUES ('Marc', 28, now())")
+      batch:add("INSERT INTO users (name, age, user_id) VALUES ('Marc', 28, c3dad2e5-40bd-4f01-cfc2-465787df746d)")
 
       -- Binded query
       batch:add("INSERT INTO users (name, age, user_id) VALUES (?, ?, ?)",
