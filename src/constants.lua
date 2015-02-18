@@ -35,6 +35,11 @@ return {
     LOCAL_SERIAL=0x0009,
     LOCAL_ONE=0x000A
   },
+  batch_types = {
+    LOGGED=0,
+    UNLOGGED=1,
+    COUNTER=2
+  },
   query_flags = {
     VALUES=0x01,
     PAGE_SIZE=0x04,
@@ -54,21 +59,21 @@ return {
     SCHEMA_CHANGE=0x05
   },
   error_codes = {
-    [0x0000]= "Server error",
-    [0x000A]= "Protocol error",
-    [0x0100]= "Bad credentials",
-    [0x1000]= "Unavailable exception",
-    [0x1001]= "Overloaded",
-    [0x1002]= "Is_bootstrapping",
-    [0x1003]= "Truncate_error",
-    [0x1100]= "Write_timeout",
-    [0x1200]= "Read_timeout",
-    [0x2000]= "Syntax_error",
-    [0x2100]= "Unauthorized",
-    [0x2200]= "Invalid",
-    [0x2300]= "Config_error",
-    [0x2400]= "Already_exists",
-    [0x2500]= "Unprepared"
+    [0x0000]="Server error",
+    [0x000A]="Protocol error",
+    [0x0100]="Bad credentials",
+    [0x1000]="Unavailable exception",
+    [0x1001]="Overloaded",
+    [0x1002]="Is_bootstrapping",
+    [0x1003]="Truncate_error",
+    [0x1100]="Write_timeout",
+    [0x1200]="Read_timeout",
+    [0x2000]="Syntax_error",
+    [0x2100]="Unauthorized",
+    [0x2200]="Invalid",
+    [0x2300]="Config_error",
+    [0x2400]="Already_exists",
+    [0x2500]="Unprepared"
   },
   types = {
     custom=0x00,

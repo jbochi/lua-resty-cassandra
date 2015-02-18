@@ -1,5 +1,3 @@
-local _M = {}
-
 local constants = require("constants")
 local encoding = require("encoding")
 local decoding = require("decoding")
@@ -133,7 +131,23 @@ local function parse_rows(buffer, metadata)
   return values
 end
 
-local function parse_prepared_response(response)
+local function query_representation(query)
+  if type(query) == "string" then
+    return encoding.long_string_representation(query)
+  elseif query.is_batch_statement then
+    return query:representation()
+  else
+    return encoding.short_bytes_representation(query.id)
+  end
+end
+
+--
+-- Protocol exposed methods
+--
+
+local _M = {}
+
+function _M.parse_prepared_response(response)
   local buffer = response.buffer
   local kind = decoding.read_int(buffer)
   local result = {}
@@ -154,9 +168,8 @@ local function parse_prepared_response(response)
   if response.tracing_id then result.tracing_id = response.tracing_id end
   return result
 end
-_M.parse_prepared_response = parse_prepared_response
 
-local function parse_response(response)
+function _M.parse_response(response)
   local result
   local buffer = response.buffer
   local kind = decoding.read_int(buffer)
@@ -193,9 +206,8 @@ local function parse_response(response)
   end
   return result
 end
-_M.parse_response = parse_response
 
-local function query_op_code(query)
+function _M.query_op_code(query)
   if type(query) == "string" then
     return constants.op_codes.QUERY
   elseif query.is_batch_statement then
@@ -204,19 +216,8 @@ local function query_op_code(query)
     return constants.op_codes.EXECUTE
   end
 end
-_M.query_op_code = query_op_code
 
-local function query_representation(query)
-  if type(query) == "string" then
-    return encoding.long_string_representation(query)
-  elseif query.is_batch_statement then
-    return query:representation()
-  else
-    return encoding.short_bytes_representation(query.id)
-  end
-end
-
-local function frame_body(query, args, options)
+function _M.frame_body(query, args, options)
   -- Determine if query is a query, statement, or batch
   local query_repr = query_representation(query)
 
@@ -239,7 +240,7 @@ local function frame_body(query, args, options)
     paging_state = encoding.bytes_representation(options.paging_state)
   end
 
-  -- <query_parameters>: <consistency><flags>[<value><...>][<result_page_size>][<paging_state>]
+  -- <query_parameters>: <consistency><flags>[<n><value_i><...>][<result_page_size>][<paging_state>]
   local query_parameters = encoding.short_representation(options.consistency_level) ..
     string.char(flags_repr) .. encoding.values_representation(args) ..
     result_page_size .. paging_state
@@ -247,9 +248,8 @@ local function frame_body(query, args, options)
   -- frame body: <query><query_parameters>
   return query_repr .. query_parameters
 end
-_M.frame_body = frame_body
 
-local function send_frame_and_get_response(self, op_code, body, tracing)
+function _M.send_frame_and_get_response(self, op_code, body, tracing)
   local version = string.char(constants.version_codes.REQUEST)
   local flags = tracing and '\002' or '\000'
   local stream_id = '\000'
@@ -262,6 +262,5 @@ local function send_frame_and_get_response(self, op_code, body, tracing)
   end
   return read_frame(self)
 end
-_M.send_frame_and_get_response = send_frame_and_get_response
 
 return _M

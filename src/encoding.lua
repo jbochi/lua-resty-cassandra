@@ -1,6 +1,6 @@
-local _M = {}
-
 local constants = require("constants")
+
+local _M = {}
 
 local function big_endian_representation(num, bytes)
   if num < 0 then
@@ -277,10 +277,13 @@ local function values_representation(args)
 end
 _M.values_representation = values_representation
 
-local function batch_representation(queries)
+function _M.batch_representation(queries, batch_type)
   local b = {}
-  b[#b + 1] = string.char(0) -- todo: logged/unlogged/counter
+  -- <type>
+  b[#b + 1] = string.char(batch_type)
+  -- <n> (number of queries)
   b[#b + 1] = short_representation(#queries)
+  -- <query_i> (operations)
   for _, query in ipairs(queries) do
     local kind
     local string_or_id
@@ -291,10 +294,21 @@ local function batch_representation(queries)
       kind = boolean_representation(true)
       string_or_id = short_bytes_representation(query.query.id)
     end
-    b[#b + 1] = kind .. string_or_id .. values_representation(query.args)
+
+    -- The behaviour is sligthly different than from <query_parameters>
+    -- for <query_parameters>:
+    --   [<n><value_1>...<value_n>] (n cannot be 0), otherwise is being mixed up with page_size
+    -- for batch <query_i>:
+    --   <kind><string_or_id><n><value_1>...<value_n> (n can be 0, but is required)
+    if query.args then
+      b[#b + 1] = kind .. string_or_id .. values_representation(query.args)
+    else
+      b[#b + 1] = kind .. string_or_id .. short_representation(0)
+    end
   end
+
+  -- <type><n><query_1>...<query_n>
   return table.concat(b)
 end
-_M.batch_representation = batch_representation
 
 return _M

@@ -1,17 +1,17 @@
 -- Implementation of CQL Binary protocol V2 available at:
 -- https://git-wip-us.apache.org/repos/asf?p=cassandra.git;a=blob_plain;f=doc/native_protocol_v2.spec;hb=HEAD
 
-local _M = {}
-_M.version = "0.5-snapshot"
-
 local protocol = require("protocol")
 local encoding = require("encoding")
 local constants = require("constants")
 
-
 local CQL_VERSION = "3.0.0"
 
-_M.consistency = constants.consistency
+local _M = {
+  version="0.5-snapshot",
+  consistency=constants.consistency,
+  batch_types=constants.batch_types
+}
 
 -- create functions for type annotations
 for key, value in pairs(constants.types) do
@@ -50,16 +50,6 @@ function _M.new(self)
   return setmetatable({sock=sock}, mt)
 end
 
-function _M.set_timeout(self, timeout)
-  local sock = self.sock
-  if not sock then
-    return nil, "not initialized"
-  end
-
-  return sock:settimeout(timeout)
-end
-
-
 local function shuffle(t)
   -- see: http://en.wikipedia.org/wiki/Fisher-Yates_shuffle
   local n = #t
@@ -69,6 +59,19 @@ local function shuffle(t)
     n = n - 1
   end
   return t
+end
+
+local function startup(self)
+  local body = encoding.string_map_representation({["CQL_VERSION"]=CQL_VERSION})
+  local response, err = protocol.send_frame_and_get_response(self,
+    constants.op_codes.STARTUP, body)
+  if not response then
+    return nil, err
+  end
+  if response.op_code ~= constants.op_codes.READY then
+    error("Server is not ready")
+  end
+  return true
 end
 
 function _M.connect(self, contact_points, port)
@@ -83,7 +86,7 @@ function _M.connect(self, contact_points, port)
   end
   local sock = self.sock
   if not sock then
-    return nil, "not initialized"
+    return nil, "session does not have a socket, create a new session first."
   end
   local ok, err
   for _, host in ipairs(contact_points) do
@@ -98,10 +101,19 @@ function _M.connect(self, contact_points, port)
   end
   if not self.initialized then
     --todo: not tested
-    self:startup()
+    startup(self)
     self.initialized = true
   end
   return true
+end
+
+function _M.set_timeout(self, timeout)
+  local sock = self.sock
+  if not sock then
+    return nil, "not initialized"
+  end
+
+  return sock:settimeout(timeout)
 end
 
 function _M.set_keepalive(self, ...)
@@ -124,7 +136,7 @@ function _M.get_reused_times(self)
   return nil, "luasocket does not support reusable sockets"
 end
 
-local function close(self)
+function _M.close(self)
   local sock = self.sock
   if not sock then
     return nil, "not initialized"
@@ -133,39 +145,28 @@ local function close(self)
   return sock:close()
 end
 
-_M.close = close
-
 ---
 --- CLIENT METHODS
 ---
 
-function _M.startup(self)
-  local body = encoding.string_map_representation({["CQL_VERSION"]=CQL_VERSION})
-  local response, err = protocol.send_frame_and_get_response(self,
-    constants.op_codes.STARTUP, body)
-  if not response then
-    return nil, err
-  end
-  if response.op_code ~= constants.op_codes.READY then
-    error("Server is not ready")
-  end
-  return true
-end
-
-local batch_statement = {
+local batch_statement_mt = {
   __index={
     add=function(self, query, args)
       table.insert(self.queries, {query=query, args=args})
     end,
     representation=function(self)
-      return encoding.batch_representation(self.queries)
+      return encoding.batch_representation(self.queries, self.type)
     end,
     is_batch_statement = true
   }
 }
 
-function _M.BatchStatement(self)
-  return setmetatable({queries={}}, batch_statement)
+function _M.BatchStatement(batch_type)
+  if not batch_type then
+    batch_type = constants.batch_types.LOGGED
+  end
+
+  return setmetatable({type=batch_type, queries={}}, batch_statement_mt)
 end
 
 function _M.prepare(self, query, options)
@@ -209,7 +210,7 @@ function _M.execute(self, query, args, options)
         paging_state=paging_state
       })
       page = page + 1
-      return rows.meta.paging_state, rows, page
+      return rows.meta.paging_state, rows, page, err
     end, query, nil
   end
 
