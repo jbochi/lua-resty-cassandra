@@ -295,11 +295,11 @@ $ busted
 
 Juarez Bochi (@jbochi)
 
+Thibault Charbonnier (@thibaultCha) -> Several contributions, including paging support, improved batch statements, better documentation, specs and code style.
+
 Leandro Moreira (@leandromoreira) -> Added support for doubles
 
 Marco Palladino (@thefosk)
-
-Thibault Charbonnier (@thibaultCha) -> Added paging
 
 [badge-travis-url]: https://travis-ci.org/jbochi/lua-resty-cassandra
 [badge-travis-image]: https://img.shields.io/travis/jbochi/lua-resty-cassandra.svg?style=flat
