@@ -180,9 +180,16 @@ Execute a query or previously prepared statement.
 >   * `meta`: If the result type is "ROWS" and the result has more pages that haven't been returned, this property will contain 2 values: `has_more_pages` and `paging_state`. See the [example below][anchor-examples] on how to use pagination.
 > * `err`: Encountered error if any.
 
-### batch, err = cassandra.BatchStatement()
+### batch, err = cassandra.BatchStatement(type)
 
-Initialized a batch statement. See the [example below][anchor-examples] on how to use batch statements.
+Initialized a batch statement. See the [example below][anchor-examples] on how to use batch statements and [this](http://www.datastax.com/documentation/cql/3.1/cql/cql_reference/batch_r.html) for informations about the type of batch to use.
+
+> **Parameters:**
+>
+> * `type`: The type of batch statement. Can be ony of those:
+>   * `cassandra.batch_types.LOGGED` (default)
+>   * `cassandra.batch_types.UNLOGGED`
+>   * `cassandra.batch_types.COUNTER`
 
 > **Return values:**
 > 
