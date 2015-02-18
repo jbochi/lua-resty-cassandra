@@ -21,6 +21,8 @@ describe("cassandra", function()
     if err then
       error(err)
     end
+
+    session:set_keyspace("lua_tests")
   end)
 
   teardown(function()
@@ -177,21 +179,18 @@ describe("cassandra", function()
 
   describe("Real use-case", function()
 
-    before_each(function()
-      session:set_keyspace("lua_tests")
-      local res, err = session:execute [[
-        SELECT columnfamily_name FROM system.schema_columnfamilies WHERE keyspace_name='lua_tests' and columnfamily_name='users'
-      ]]
-      if #res > 0 then
-        session:execute("DROP TABLE users")
-      end
+    setup(function()
       table_created, err = session:execute [[
-          CREATE TABLE users (
-            user_id uuid PRIMARY KEY,
-            name varchar,
-            age int
-          )
+        CREATE TABLE IF NOT EXISTS users (
+          user_id uuid PRIMARY KEY,
+          name varchar,
+          age int
+        )
       ]]
+    end)
+
+    teardown(function()
+      session:execute("DROP TABLE users")
     end)
 
     describe("DDL statements", function()
@@ -200,13 +199,14 @@ describe("cassandra", function()
       end)
 
       it("should not be possible to create a table twice", function()
-        table_created, err = session:execute [[
-            CREATE TABLE users (
-              user_id uuid PRIMARY KEY,
-              name varchar,
-              age int
-            )
+        local table_created, err = session:execute [[
+          CREATE TABLE users (
+            user_id uuid PRIMARY KEY,
+            name varchar,
+            age int
+          )
         ]]
+        assert.is_not_true(table_created)
         assert.same(err, 'Cassandra returned error (Already_exists): "Cannot add already existing column family "users" to keyspace "lua_tests""')
       end)
     end)
@@ -257,27 +257,6 @@ describe("cassandra", function()
         assert.truthy(ok)
       end)
     end)
-
-    describe("Batch statements #batch", function()
-      it("should support batch statements", function()
-        local batch = cassandra.BatchStatement()
-
-        batch:add("INSERT INTO users (name, age, user_id) VALUES (?, ?, ?)",
-          {"James", 32, cassandra.uuid("2644bada-852c-11e3-89fb-e0b9a54a6d93")})
-
-        local stmt, err = session:prepare("INSERT INTO users (name, age, user_id) VALUES (?, ?, ?)")
-        batch:add(stmt, {"John", 45, cassandra.uuid("1144bada-852c-11e3-89fb-e0b9a54a6d11")})
-
-        local result, err = session:execute(batch)
-        assert.falsy(err)
-        assert.truthy(result)
-
-        local users, err = session:execute("SELECT name, age, user_id from users")
-        assert.same(2, #users)
-        assert.same("James", users[1].name)
-        assert.same("John", users[2].name)
-      end)
-    end)
   end)
 
   describe("Types #types", function()
@@ -286,14 +265,17 @@ describe("cassandra", function()
     for _, type in ipairs(types) do
       describe("Type " .. type.name, function()
 
-        before_each(function()
-          session:set_keyspace("lua_tests")
+        setup(function()
           session:execute([[
             CREATE TABLE type_test_table (
               key varchar PRIMARY KEY,
               value ]] .. type.name .. [[
             )
           ]])
+        end)
+
+        teardown(function()
+          session:execute("DROP TABLE type_test_table")
         end)
 
         it("should be possible to insert and get value back", function()
@@ -310,20 +292,15 @@ describe("cassandra", function()
             assert.same(type.read_value ~= nil and type.read_value or type.value, rows[1].value)
           end
         end)
-
-        after_each(function()
-          session:execute("DROP TABLE type_test_table")
-        end)
       end)
     end
   end)
 
   describe("Pagination #pagination", function()
 
-    before_each(function()
-      session:set_keyspace("lua_tests")
-      local ok, err = session:execute [[
-        CREATE TABLE pagination_test_table(
+    setup(function()
+      session:execute [[
+        CREATE TABLE IF NOT EXISTS pagination_test_table(
           key int PRIMARY KEY,
           value varchar
         )
@@ -332,6 +309,10 @@ describe("cassandra", function()
         session:execute([[ INSERT INTO pagination_test_table(key, value)
                             VALUES(?,?) ]], { i, "test" })
       end
+    end)
+
+    teardown(function()
+      session:execute("DROP TABLE pagination_test_table")
     end)
 
     it("should have a high default value and signal that everything is fetched", function()
@@ -388,22 +369,25 @@ describe("cassandra", function()
 
       assert.are.same(expected_number_of_pages, page_tracker)
     end)
-
-    after_each(function()
-      session:execute("DROP TABLE pagination_test_table")
-    end)
   end)
 
   describe("Counters #counters", function()
 
-    before_each(function()
-      session:set_keyspace("lua_tests")
+    setup(function()
       session:execute [[
         CREATE TABLE counter_test_table (
           key varchar PRIMARY KEY,
           value counter
         )
       ]]
+    end)
+
+    teardown(function()
+      session:execute("DROP TABLE counter_test_table")
+    end)
+
+    after_each(function()
+      session:execute("TRUNCATE counter_test_table")
     end)
 
     it("should be possible to increment and get value back", function()
@@ -423,9 +407,41 @@ describe("cassandra", function()
       assert.same(1, #rows)
       assert.same(-10, rows[1].value)
     end)
+  end)
 
-    after_each(function()
-      session:execute("DROP TABLE counter_test_table")
+  describe("Batch statements #batch", function()
+
+    setup(function()
+      table_created, err = session:execute [[
+        CREATE TABLE IF NOT EXISTS users (
+          user_id uuid PRIMARY KEY,
+          name varchar,
+          age int
+        )
+      ]]
+    end)
+
+    teardown(function()
+      session:execute("DROP TABLE users")
+    end)
+
+    it("should support batch statements", function()
+      local batch = cassandra.BatchStatement()
+
+      batch:add("INSERT INTO users (name, age, user_id) VALUES (?, ?, ?)",
+        {"James", 32, cassandra.uuid("2644bada-852c-11e3-89fb-e0b9a54a6d93")})
+
+      local stmt, err = session:prepare("INSERT INTO users (name, age, user_id) VALUES (?, ?, ?)")
+      batch:add(stmt, {"John", 45, cassandra.uuid("1144bada-852c-11e3-89fb-e0b9a54a6d11")})
+
+      local result, err = session:execute(batch)
+      assert.falsy(err)
+      assert.truthy(result)
+
+      local users, err = session:execute("SELECT name, age, user_id from users")
+      assert.same(2, #users)
+      assert.same("James", users[1].name)
+      assert.same("John", users[2].name)
     end)
   end)
 end)
