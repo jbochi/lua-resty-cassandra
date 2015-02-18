@@ -35,6 +35,11 @@ return {
     LOCAL_SERIAL=0x0009,
     LOCAL_ONE=0x000A
   },
+  batch_types = {
+    LOGGED=0,
+    UNLOGGED=1,
+    COUNTER=2
+  },
   query_flags = {
     VALUES=0x01,
     PAGE_SIZE=0x04,

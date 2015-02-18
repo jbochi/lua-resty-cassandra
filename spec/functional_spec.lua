@@ -189,6 +189,10 @@ describe("cassandra", function()
       ]]
     end)
 
+    after_each(function()
+      session:execute("TRUNCATE users")
+    end)
+
     teardown(function()
       session:execute("DROP TABLE users")
     end)
@@ -260,6 +264,7 @@ describe("cassandra", function()
   end)
 
   describe("Types #types", function()
+
     local types = require "spec.type_fixtures"
 
     for _, type in ipairs(types) do
@@ -412,27 +417,63 @@ describe("cassandra", function()
   describe("Batch statements #batch", function()
 
     setup(function()
-      table_created, err = session:execute [[
+      session:execute [[
         CREATE TABLE IF NOT EXISTS users (
           user_id uuid PRIMARY KEY,
           name varchar,
           age int
         )
       ]]
+      session:execute [[
+        CREATE TABLE counter_test_table (
+          key varchar PRIMARY KEY,
+          value counter
+        )
+      ]]
     end)
 
     teardown(function()
       session:execute("DROP TABLE users")
+      session:execute("DROP TABLE counter_test_table")
     end)
 
-    it("should support batch statements", function()
+    after_each(function()
+      session:execute("TRUNCATE users")
+      session:execute("TRUNCATE counter_test_table")
+    end)
+
+    it("should support logged batch statements", function()
       local batch = cassandra.BatchStatement()
 
+      -- Query
+      batch:add("INSERT INTO users (name, age, user_id) VALUES ('Marc', 28, now())")
+
+      -- Binded query
       batch:add("INSERT INTO users (name, age, user_id) VALUES (?, ?, ?)",
         {"James", 32, cassandra.uuid("2644bada-852c-11e3-89fb-e0b9a54a6d93")})
 
+      -- Prepared statement
       local stmt, err = session:prepare("INSERT INTO users (name, age, user_id) VALUES (?, ?, ?)")
       batch:add(stmt, {"John", 45, cassandra.uuid("1144bada-852c-11e3-89fb-e0b9a54a6d11")})
+
+      local result, err = session:execute(batch)
+      assert.falsy(err)
+      assert.truthy(result)
+
+      local users, err = session:execute("SELECT name, age, user_id from users")
+      assert.same(3, #users)
+      assert.same("Marc", users[1].name)
+      assert.same("James", users[2].name)
+      assert.same("John", users[3].name)
+    end)
+
+    it("should support unlogged batch statements", function()
+      local batch = cassandra.BatchStatement(cassandra.batch_types.UNLOGGED)
+
+      batch:add("INSERT INTO users (name, age, user_id) VALUES (?, ?, ?)",
+        {"James", 32, cassandra.uuid("2644bada-852c-11e3-89fb-e0b9a54a6d93")})
+      batch:add("INSERT INTO users (name, age, user_id) VALUES (?, ?, ?)",
+        {"John", 45, cassandra.uuid("1144bada-852c-11e3-89fb-e0b9a54a6d11")})
 
       local result, err = session:execute(batch)
       assert.falsy(err)
@@ -442,6 +483,33 @@ describe("cassandra", function()
       assert.same(2, #users)
       assert.same("James", users[1].name)
       assert.same("John", users[2].name)
+    end)
+
+    it("should support counter batch statements", function()
+      local batch = cassandra.BatchStatement(cassandra.batch_types.COUNTER)
+
+      -- Query
+      batch:add("UPDATE counter_test_table SET value = value + 1 WHERE key = 'key'")
+
+      -- Binded queries
+      batch:add("UPDATE counter_test_table SET value = value + 1 WHERE key = ?", {"key"})
+      batch:add("UPDATE counter_test_table SET value = value + 1 WHERE key = ?", {"key"})
+
+      -- Prepared statement
+      local stmt, err = session:prepare [[
+        UPDATE counter_test_table SET value = value + 1 WHERE key = ?
+      ]]
+      batch:add(stmt, {"key"})
+
+      local result, err = session:execute(batch)
+      assert.falsy(err)
+      assert.truthy(result)
+
+      local rows, err = session:execute [[
+        SELECT value from counter_test_table WHERE key = 'key'
+      ]]
+      assert.falsy(err)
+      assert.same(4, rows[1].value)
     end)
   end)
 end)

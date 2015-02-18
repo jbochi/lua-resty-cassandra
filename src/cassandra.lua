@@ -8,8 +8,9 @@ local constants = require("constants")
 local CQL_VERSION = "3.0.0"
 
 local _M = {
-  version = "0.5-snapshot",
-  consistency = constants.consistency
+  version="0.5-snapshot",
+  consistency=constants.consistency,
+  batch_types=constants.batch_types
 }
 
 -- create functions for type annotations
@@ -148,20 +149,24 @@ end
 --- CLIENT METHODS
 ---
 
-function _M.BatchStatement(self)
-  local batch_statement = {
-    __index={
-      add=function(self, query, args)
-        table.insert(self.queries, {query=query, args=args})
-      end,
-      representation=function(self)
-        return encoding.batch_representation(self.queries)
-      end,
-      is_batch_statement = true
-    }
+local batch_statement_mt = {
+  __index={
+    add=function(self, query, args)
+      table.insert(self.queries, {query=query, args=args})
+    end,
+    representation=function(self)
+      return encoding.batch_representation(self.queries, self.type)
+    end,
+    is_batch_statement = true
   }
+}
 
-  return setmetatable({queries={}}, batch_statement)
+function _M.BatchStatement(batch_type)
+  if not batch_type then
+    batch_type = constants.batch_types.LOGGED
+  end
+
+  return setmetatable({type=batch_type, queries={}}, batch_statement_mt)
 end
 
 function _M.prepare(self, query, options)

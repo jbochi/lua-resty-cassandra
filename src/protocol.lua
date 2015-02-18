@@ -240,7 +240,7 @@ function _M.frame_body(query, args, options)
     paging_state = encoding.bytes_representation(options.paging_state)
   end
 
-  -- <query_parameters>: <consistency><flags>[<value><...>][<result_page_size>][<paging_state>]
+  -- <query_parameters>: <consistency><flags>[<n><value_i><...>][<result_page_size>][<paging_state>]
   local query_parameters = encoding.short_representation(options.consistency_level) ..
     string.char(flags_repr) .. encoding.values_representation(args) ..
     result_page_size .. paging_state
