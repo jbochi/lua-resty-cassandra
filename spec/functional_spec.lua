@@ -10,26 +10,20 @@ describe("cassandra", function()
     session:set_timeout(1000)
 
     connected, err = session:connect("127.0.0.1", 9042)
-    if err then
-      error(err)
-    end
+    assert.falsy(err)
 
     local res, err = session:execute [[
       CREATE KEYSPACE IF NOT EXISTS lua_tests
       WITH REPLICATION = { 'class' : 'SimpleStrategy', 'replication_factor' : 3 }
     ]]
-    if err then
-      error(err)
-    end
+    assert.falsy(err)
 
     session:set_keyspace("lua_tests")
   end)
 
   teardown(function()
     local res, err = session:execute("DROP KEYSPACE lua_tests")
-    if err then
-      error(err)
-    end
+    assert.falsy(err)
   end)
 
   describe("Connection #socket", function()
@@ -47,6 +41,7 @@ describe("cassandra", function()
       local new_session = cassandra.new()
       new_session:set_timeout(1000)
       local connected, err = new_session:connect("127.0.0.1")
+      assert.falsy(err)
       assert.truthy(connected)
     end)
 
@@ -54,6 +49,7 @@ describe("cassandra", function()
       local new_session = cassandra.new()
       new_session:set_timeout(1000)
       local connected, err = new_session:connect({"localhost", "127.0.0.1"})
+      assert.falsy(err)
       assert.truthy(connected)
     end)
 
@@ -61,16 +57,16 @@ describe("cassandra", function()
       local new_session = cassandra.new()
       new_session:set_timeout(1000)
       local connected, err = new_session:connect({"0.0.0.1", "0.0.0.2", "0.0.0.3", "127.0.0.1"})
-      assert.truthy(connected)
       assert.falsy(err)
+      assert.truthy(connected)
     end)
 
     it("should return error if it fails to connect to all hosts", function()
       local new_session = cassandra.new()
       new_session:set_timeout(1000)
       local connected, err = new_session:connect({"0.0.0.1", "0.0.0.2", "0.0.0.3"})
-      assert.falsy(connected)
       assert.truthy(err)
+      assert.falsy(connected)
     end)
 
     it("should fallback to luasocket when creating a session", function()
@@ -79,6 +75,7 @@ describe("cassandra", function()
       local new_session = cassandra.new()
       new_session:set_timeout(1000)
       local connected, err = new_session:connect("127.0.0.1")
+      assert.falsy(err)
       assert.truthy(connected)
       _G.ngx = ngx_mock
     end)
@@ -91,6 +88,7 @@ describe("cassandra", function()
       rows, err = session:execute [[
         SELECT cql_version, native_protocol_version, release_version FROM system.local
       ]]
+      assert.falsy(err)
     end)
 
     it("should have a length", function()
@@ -136,6 +134,7 @@ describe("cassandra", function()
         SELECT cql_version, native_protocol_version, release_version FROM system.local
       ]], nil, {tracing=true})
 
+      assert.falsy(err)
       assert.truthy(rows.tracing_id)
     end)
   end)
@@ -143,6 +142,7 @@ describe("cassandra", function()
   describe("Prepared statements", function()
     it("should support prepared statements", function()
       local stmt, err = session:prepare("SELECT native_protocol_version FROM system.local")
+      assert.falsy(err)
       assert.truthy(stmt)
       local rows = session:execute(stmt)
       assert.same(1, #rows)
@@ -151,7 +151,7 @@ describe("cassandra", function()
 
     it("should support variadic arguments in prepared statements", function()
       local stmt, err = session:prepare("SELECT * FROM system.local WHERE key IN ?")
-      assert.same(nil, err)
+      assert.falsy(err)
       assert.truthy(stmt)
       local rows = session:execute(stmt, {cassandra.list({"local", "not local"})})
       assert.same(1, #rows)
@@ -160,6 +160,7 @@ describe("cassandra", function()
 
     it("should support tracing for prepared statements", function()
       local stmt, err = session:prepare("SELECT native_protocol_version FROM system.local", {tracing=true})
+      assert.falsy(err)
       assert.truthy(stmt)
       assert.truthy(stmt.tracing_id)
     end)
@@ -168,11 +169,12 @@ describe("cassandra", function()
   describe("Keyspace", function()
     it("should catch errors", function()
       local ok, err = session:set_keyspace("invalid_keyspace")
-      assert.same(err, [[Cassandra returned error (Invalid): "Keyspace 'invalid_keyspace' does not exist"]])
+      assert.same([[Cassandra returned error (Invalid): "Keyspace 'invalid_keyspace' does not exist"]], err)
     end)
 
     it("should be possible to use a namespace", function()
       local ok, err = session:set_keyspace("lua_tests")
+      assert.falsy(err)
       assert.truthy(ok)
     end)
   end)
@@ -187,6 +189,7 @@ describe("cassandra", function()
           age int
         )
       ]]
+      assert.falsy(err)
     end)
 
     after_each(function()
@@ -211,16 +214,17 @@ describe("cassandra", function()
           )
         ]]
         assert.is_not_true(table_created)
-        assert.same(err, 'Cassandra returned error (Already_exists): "Cannot add already existing column family "users" to keyspace "lua_tests""')
+        assert.same('Cassandra returned error (Already_exists): "Cannot add already existing column family "users" to keyspace "lua_tests""', err)
       end)
     end)
 
     describe("DML statements", function()
       it("should be possible to insert a row", function()
-        local ok, err = session:execute([[
+        local ok, err = session:execute [[
           INSERT INTO users (name, age, user_id)
           VALUES ('John O''Reilly', 42, 2644bada-852c-11e3-89fb-e0b9a54a6d93)
-        ]])
+        ]]
+        assert.falsy(err)
         assert.truthy(ok)
       end)
 
@@ -230,6 +234,7 @@ describe("cassandra", function()
           VALUES ('John O''Reilly', 42, 2644bada-852c-11e3-89fb-e0b9a54a6d93)
         ]]
         local result, err = session:execute(query, {}, {tracing=true})
+        assert.falsy(err)
         assert.truthy(result)
         assert.truthy(result.tracing_id)
         local tracing, err = session:get_trace(result)
@@ -244,7 +249,7 @@ describe("cassandra", function()
           INSERT INTO users (name, age, user_id)
           VALUES ('John O''Reilly', 42, 2644bada-852c-11e3-89fb-e0b9a54a6d93)
         ]], {}, {consistency_level=cassandra.consistency.TWO})
-        assert.same(err, 'Cassandra returned error (Unavailable exception): "Cannot achieve consistency level TWO"')
+        assert.same('Cassandra returned error (Unavailable exception): "Cannot achieve consistency level TWO"', err)
       end)
 
       it("should support queries with arguments", function()
@@ -252,7 +257,10 @@ describe("cassandra", function()
           INSERT INTO users (name, age, user_id)
           VALUES (?, ?, ?)
         ]], {"John O'Reilly", 42, cassandra.uuid("2644bada-852c-11e3-89fb-e0b9a54a6d93")})
+        assert.falsy(err)
+
         local users, err = session:execute("SELECT name, age, user_id from users")
+
         assert.same(1, #users)
         local user = users[1]
         assert.same("John O'Reilly", user.name)
@@ -288,7 +296,8 @@ describe("cassandra", function()
             INSERT INTO type_test_table (key, value)
             VALUES (?, ?)
           ]], {"key", type.insert_value ~= nil and type.insert_value or type.value})
-          assert.same(nil, err)
+          assert.falsy(err)
+
           local rows, err = session:execute("SELECT value FROM type_test_table WHERE key = 'key'")
           assert.same(1, #rows)
           if type.read_test then
@@ -400,6 +409,7 @@ describe("cassandra", function()
         UPDATE counter_test_table SET value = value + ? WHERE key = ?
       ]], {{type="counter", value=10}, "key"})
       local rows, err = session:execute("SELECT value FROM counter_test_table WHERE key = 'key'")
+      assert.falsy(err)
       assert.same(1, #rows)
       assert.same(10, rows[1].value)
     end)
@@ -409,6 +419,7 @@ describe("cassandra", function()
         UPDATE counter_test_table SET value = value + ? WHERE key = ?
       ]], {{type="counter", value=-10}, "key"})
       local rows, err = session:execute("SELECT value FROM counter_test_table WHERE key = 'key'")
+      assert.falsy(err)
       assert.same(1, #rows)
       assert.same(-10, rows[1].value)
     end)
@@ -454,6 +465,7 @@ describe("cassandra", function()
 
       -- Prepared statement
       local stmt, err = session:prepare("INSERT INTO users (name, age, user_id) VALUES (?, ?, ?)")
+      assert.falsy(err)
       batch:add(stmt, {"John", 45, cassandra.uuid("1144bada-852c-11e3-89fb-e0b9a54a6d11")})
 
       local result, err = session:execute(batch)
@@ -461,6 +473,7 @@ describe("cassandra", function()
       assert.truthy(result)
 
       local users, err = session:execute("SELECT name, age, user_id from users")
+      assert.falsy(err)
       assert.same(3, #users)
       assert.same("Marc", users[1].name)
       assert.same("James", users[2].name)
@@ -480,6 +493,7 @@ describe("cassandra", function()
       assert.truthy(result)
 
       local users, err = session:execute("SELECT name, age, user_id from users")
+      assert.falsy(err)
       assert.same(2, #users)
       assert.same("James", users[1].name)
       assert.same("John", users[2].name)
@@ -499,6 +513,7 @@ describe("cassandra", function()
       local stmt, err = session:prepare [[
         UPDATE counter_test_table SET value = value + 1 WHERE key = ?
       ]]
+      assert.falsy(err)
       batch:add(stmt, {"key"})
 
       local result, err = session:execute(batch)
