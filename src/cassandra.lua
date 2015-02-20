@@ -76,7 +76,9 @@ end
 
 function _M.connect(self, contact_points, port)
   if port == nil then port = 9042 end
-  if type(contact_points) == 'table' then
+  if contact_points == nil then
+    return nil, "no contact points provided"
+  elseif type(contact_points) == 'table' then
     -- shuffle the contact points so we don't try
     -- to connect always on the same order, avoiding
     -- pressure on the same node cordinator
