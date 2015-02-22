@@ -7,6 +7,8 @@ local constants = require("constants")
 
 local CQL_VERSION = "3.0.0"
 
+math.randomseed(ngx and ngx.time() or os.time())
+
 local _M = {
   version="0.5-snapshot",
   consistency=constants.consistency,
@@ -29,8 +31,6 @@ _M.null = {type="null", value=nil}
 local mt = {__index=_M}
 
 function _M.new(self)
-  math.randomseed(ngx and ngx.time() or os.time())
-
   local tcp
   if ngx and ngx.get_phase ~= nil and ngx.get_phase() ~= "init" then
     -- openresty
