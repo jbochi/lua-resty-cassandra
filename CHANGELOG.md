@@ -7,6 +7,7 @@
 
 #### Fixed
 - Batch statement queries without parameters
+- Require contact_points to not be nil #39
 
 ## [0.4] - 2015/02/06
 #### Added
