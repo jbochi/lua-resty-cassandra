@@ -8,6 +8,7 @@
 #### Fixed
 - Batch statement queries without parameters
 - Require contact_points to not be nil #39
+- Seed random number generator only once, on module import
 
 ## [0.4] - 2015/02/06
 #### Added
