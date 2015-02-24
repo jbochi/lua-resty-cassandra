@@ -1,5 +1,9 @@
 ## [Unreleased][unreleased]
 #### Added
+#### Fixed
+
+## [0.5] - 2015/02/24
+#### Added
 - Support for pagination.
 - Support for batch types.
 - Better, complete documentation.
