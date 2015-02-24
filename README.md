@@ -304,7 +304,7 @@ Marco Palladino (@thefosk)
 [badge-travis-url]: https://travis-ci.org/jbochi/lua-resty-cassandra
 [badge-travis-image]: https://img.shields.io/travis/jbochi/lua-resty-cassandra.svg?style=flat
 
-[badge-version-image]: https://img.shields.io/badge/version-0.4--1-blue.svg?style=flat
+[badge-version-image]: https://img.shields.io/badge/version-0.5--1-green.svg?style=flat
 
 [luarocks-url]: https://luarocks.org
 
