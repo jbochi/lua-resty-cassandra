@@ -1,8 +1,8 @@
 package = "cassandra"
-version = "0.5-1"
+version = "0.5-2"
 source = {
    url = "git://github.com/jbochi/lua-resty-cassandra",
-   tag = "v0.5"
+   tag = "v0.5-2"
 }
 description = {
    summary = "Pure Lua Cassandra - CQL client",
@@ -20,6 +20,10 @@ build = {
    type = "builtin",
    modules = {
       cassandra = "src/cassandra.lua",
+      constants = "src/constants.lua",
+      protocol = "src/protocol.lua",
+      decoding = "src/decoding.lua",
+      encoding = "src/encoding.lua"
    },
    copy_directories = { "spec" }
 }

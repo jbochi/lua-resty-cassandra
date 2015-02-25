@@ -61,7 +61,7 @@ ngx.say(user.age) -- 42
 ```
 
 You can check more examples in the [tests](https://github.com/jbochi/lua-resty-cassandra/blob/master/spec/functional_spec.lua) or [here][anchor-examples].
- 
+
 ## Socket methods
 
 ### session, err = cassandra.new()
@@ -69,7 +69,7 @@ You can check more examples in the [tests](https://github.com/jbochi/lua-resty-c
 Creates a new session. Create a socket with the cosocket API if available, fallback on luasocket otherwise.
 
 > **Return values:**
-> 
+>
 > * `session`: A lua-resty-cassandra session.
 > * `err`: Any error encountered during the socket creation.
 
@@ -78,7 +78,7 @@ Creates a new session. Create a socket with the cosocket API if available, fallb
 Sets timeout (in miliseconds). Uses Nginx [tcpsock:settimeout](http://wiki.nginx.org/HttpLuaModule#tcpsock:settimeout).
 
 > **Parameters:**
-> 
+>
 > * `timeout`: A number being the timeout in miliseconds
 
 ### ok, err = session:connect(contact_points, port)
@@ -86,12 +86,12 @@ Sets timeout (in miliseconds). Uses Nginx [tcpsock:settimeout](http://wiki.nginx
 Connects to a single or multiple hosts at the given port.
 
 > **Parameters:**
-> 
+>
 > * `contact_points`: A string or an array of strings (hosts) to connect to.
 > * `port`: The port number
 
 > **Return values:**
-> 
+>
 > * `ok`: true if connected, false otherwise. Nil of the session doesn't have a socket.
 > * `err`: Any encountered error.
 
@@ -102,12 +102,12 @@ Puts the current Cassandra connection immediately into the ngx_lua cosocket conn
 **Note**: Only call this method in the place you would have called the close method instead. Calling this method will immediately turn the current cassandra session object into the closed state. Any subsequent operations other than connect() on the current objet will return the closed error.
 
 > **Parameters:**
-> 
+>
 > * `max_idle_timeout`: Max idle timeout (in ms) when the connection is in the pool
 > * `pool_size`: Maximal size of the pool every nginx worker process.
 
 > **Return values:**
-> 
+>
 > * `ok`: `1` if success, nil otherwise.
 > * `err`: Encountered error if any
 
@@ -118,7 +118,7 @@ This method returns the (successfully) reused times for the current connection. 
 **Note:** If the current connection does not come from the built-in connection pool, then this method always returns `0`, that is, the connection has never been reused (yet). If the connection comes from the connection pool, then the return value is always non-zero. So this method can also be used to determine if the current connection comes from the pool.
 
 > **Return values:**
-> 
+>
 > * `times`: Number of times the current connection was successfully reused, nil if error
 > * `err`: Encountered error if any
 
@@ -138,7 +138,7 @@ Closes the current connection and returns the status.
 Sets session keyspace to the given `keyspace_name`.
 
 > **Parameters:**
-> 
+>
 > * `keyspace_name`: Name of the keyspace to use.
 
 > **Return values:**
@@ -150,12 +150,12 @@ Sets session keyspace to the given `keyspace_name`.
 Prepare a statement for later execution.
 
 > **Parameters:**
-> 
+>
 > * `query`: A string representing a query to prepare.
 > * `options`: The same options available on `:execute()`.
 
 > **Return values:**
-> 
+>
 > * `stmt`: A prepareed statement to be used by `:execute()`, nil if the preparation failed.
 > * `err`: Encountered error if any.
 
@@ -164,7 +164,7 @@ Prepare a statement for later execution.
 Execute a query or previously prepared statement.
 
 > **Parameters:**
-> 
+>
 > * `query`: A string representing a query or a previously prepared statement.
 > * `args`: An array of arguments to bind to the query. Those arguments can be type annotated (example: `cassandra.bigint(4)`. If there is no annotation, the driver will try to infer a type. Since integer numbers are serialized as int with 4 bytes, Cassandra would return an error if we tried to insert it in a bigint column.
 > * `options` is a table of options:
@@ -174,7 +174,7 @@ Execute a query or previously prepared statement.
 >   * `auto_paging`: If set to true, `execute` will return an iterator. See the [example below][anchor-examples] on how to use auto pagination.
 
 > **Return values:**
-> 
+>
 > * `result`: A table containing the result of this query if successful, ni otherwise. The table can contain additional keys:
 >   * `type`: Type of the result set, can either be "VOID", "ROWS", "SET_KEYSPACE" or "SCHEMA_CHANGE".
 >   * `meta`: If the result type is "ROWS" and the result has more pages that haven't been returned, this property will contain 2 values: `has_more_pages` and `paging_state`. See the [example below][anchor-examples] on how to use pagination.
@@ -192,7 +192,7 @@ Initialized a batch statement. See the [example below][anchor-examples] on how t
 >   * `cassandra.batch_types.COUNTER`
 
 > **Return values:**
-> 
+>
 > * `batch`: An empty batch statement on which to add operations.
 > * `err`: Encountered error if any.
 
@@ -201,7 +201,7 @@ Initialized a batch statement. See the [example below][anchor-examples] on how t
 Add an operation to a batch statement. See the [example below][anchor-examples] on how to use batch statements.
 
 > **Parameters:**
-> 
+>
 > * `query`: A string representing a query or a previously prepared statement.
 > * `args`: An array of arguments to bind to the query, similar to `:execute()`.
 
@@ -210,11 +210,11 @@ Add an operation to a batch statement. See the [example below][anchor-examples] 
 Return the trace of a given result, if possible.
 
 > **Parameters:**
-> 
+>
 > * `result`: A previous query result.
 
 > **Return values:**
-> 
+>
 > `trace`: is a table with the following keys (from `system_traces.sessions` and `system_traces.events` [system tracing tables](http://www.datastax.com/dev/blog/advanced-request-tracing-in-cassandra-1-2):
 >
 > * coordinator
@@ -228,7 +228,7 @@ Return the trace of a given result, if possible.
 >    * source
 >    * source_elapsed
 >    * thread
-> 
+>
 > `err`: Encountered error if any.
 
 ## Examples
@@ -263,7 +263,7 @@ assert.same(500, #rows) -- rows contains the 500 first rows
 
 if rows.meta.has_more_pages then
 	local next_rows, err = session:execute(query, nil, {paging_state = rows.meta.paging_state})
-	
+
 	assert.same(500, #next_rows) -- next_rows contains the next (and last) 500 rows
 end
 ```
@@ -304,7 +304,7 @@ Marco Palladino (@thefosk)
 [badge-travis-url]: https://travis-ci.org/jbochi/lua-resty-cassandra
 [badge-travis-image]: https://img.shields.io/travis/jbochi/lua-resty-cassandra.svg?style=flat
 
-[badge-version-image]: https://img.shields.io/badge/version-0.5--1-green.svg?style=flat
+[badge-version-image]: https://img.shields.io/badge/version-0.5--2-green.svg?style=flat
 
 [luarocks-url]: https://luarocks.org
 
