@@ -2,6 +2,10 @@
 #### Added
 #### Fixed
 
+## [0.5-2] - 2015/02/24
+#### Fixed
+- Installation (missing rockspec files)
+
 ## [0.5] - 2015/02/24
 #### Added
 - Support for pagination.
@@ -38,7 +42,9 @@
 ## 0.1 - 2014-07-26
 - First release.
 
-[unreleased]: https://github.com/jbochi/lua-resty-cassandra/compare/v0.4...HEAD
+[unreleased]: https://github.com/jbochi/lua-resty-cassandra/compare/v0.5-2...HEAD
+[0.5-2]: https://github.com/jbochi/lua-resty-cassandra/compare/v0.5...v0.5-2
+[0.5]: https://github.com/jbochi/lua-resty-cassandra/compare/v0.4...v0.5
 [0.4]: https://github.com/jbochi/lua-resty-cassandra/compare/v0.3...v0.4
 [0.3]: https://github.com/jbochi/lua-resty-cassandra/compare/v0.2...v0.3
 [0.2]: https://github.com/jbochi/lua-resty-cassandra/compare/v0.1...v0.2
