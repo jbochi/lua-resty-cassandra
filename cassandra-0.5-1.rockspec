@@ -20,10 +20,10 @@ build = {
    type = "builtin",
    modules = {
       cassandra = "src/cassandra.lua",
-      constants = "src/constants.lua",
-      protocol = "src/protocol.lua",
-      decoding = "src/decoding.lua",
-      encoding = "src/encoding.lua"
+      ["cassandra.constants"] = "src/constants.lua",
+      ["cassandra.protocol"] = "src/protocol.lua",
+      ["cassandra.decoding"] = "src/decoding.lua",
+      ["cassandra.encoding"] = "src/encoding.lua"
    },
    copy_directories = { "spec" }
 }

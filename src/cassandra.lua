@@ -1,9 +1,9 @@
 -- Implementation of CQL Binary protocol V2 available at:
 -- https://git-wip-us.apache.org/repos/asf?p=cassandra.git;a=blob_plain;f=doc/native_protocol_v2.spec;hb=HEAD
 
-local protocol = require("protocol")
-local encoding = require("encoding")
-local constants = require("constants")
+local protocol = require("cassandra.protocol")
+local encoding = require("cassandra.encoding")
+local constants = require("cassandra.constants")
 
 local CQL_VERSION = "3.0.0"
 

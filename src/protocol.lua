@@ -1,6 +1,6 @@
-local constants = require("constants")
-local encoding = require("encoding")
-local decoding = require("decoding")
+local constants = require("cassandra.constants")
+local encoding = require("cassandra.encoding")
+local decoding = require("cassandra.decoding")
 
 local function read_error(buffer)
   local error_code = constants.error_codes[decoding.read_int(buffer)]

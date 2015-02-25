@@ -1,6 +1,6 @@
 local _M = {}
 
-local constants = require("constants")
+local constants = require("cassandra.constants")
 
 local function create_buffer(str)
   return {str=str, pos=1}

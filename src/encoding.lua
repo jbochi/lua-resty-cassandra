@@ -1,4 +1,4 @@
-local constants = require("constants")
+local constants = require("cassandra.constants")
 
 local _M = {}
 
