@@ -2,18 +2,6 @@ local constants = require("cassandra.constants")
 
 local _M = {}
 
-local function identity_representation(value)
-  return value
-end
-
-local function boolean_representation(value)
-  if value then return "\001" else return "\000" end
-end
-
-local function string_representation(str)
-  return _M.short_representation(#str) .. str
-end
-
 local function big_endian_representation(num, bytes)
   if num < 0 then
     -- 2's complement
@@ -29,8 +17,22 @@ local function big_endian_representation(num, bytes)
   return padding .. table.concat(t)
 end
 
+local function int_representation(num)
+  return big_endian_representation(num, 4)
+end
+
+local function short_representation(num)
+  return big_endian_representation(num, 2)
+end
+
 local function bigint_representation(n)
-  return string.char(n >= 0 and 0 or 0xFF, -- only 53 bits from double
+  local first_byte
+  if n >= 0 then
+    first_byte = 0
+  else
+    first_byte = 0xFF
+  end
+  return string.char(first_byte, -- only 53 bits from double
                      math.floor(n / 0x1000000000000) % 0x100,
                      math.floor(n / 0x10000000000) % 0x100,
                      math.floor(n / 0x100000000) % 0x100,
@@ -38,6 +40,47 @@ local function bigint_representation(n)
                      math.floor(n / 0x10000) % 0x100,
                      math.floor(n / 0x100) % 0x100,
                      n % 0x100)
+end
+
+local function uuid_representation(value)
+  local str = string.gsub(value, "-", "")
+  local buffer = {}
+  for i = 1, #str, 2 do
+    local byte_str =  string.sub(str, i, i + 1)
+    buffer[#buffer + 1] = string.char(tonumber(byte_str, 16))
+  end
+  return table.concat(buffer)
+end
+
+local function string_representation(str)
+  return short_representation(#str) .. str
+end
+
+local function long_string_representation(str)
+  return int_representation(#str) .. str
+end
+
+local function bytes_representation(bytes)
+  return int_representation(#bytes) .. bytes
+end
+
+local function short_bytes_representation(bytes)
+  return short_representation(#bytes) .. bytes
+end
+
+local function string_map_representation(map)
+  local buffer = {}
+  local n = 0
+  for k, v in pairs(map) do
+    buffer[#buffer + 1] = string_representation(k)
+    buffer[#buffer + 1] = string_representation(v)
+    n = n + 1
+  end
+  return short_representation(n) .. table.concat(buffer)
+end
+
+local function boolean_representation(value)
+  if value then return "\001" else return "\000" end
 end
 
 -- 'inspired' by https://github.com/fperrad/lua-MessagePack/blob/master/src/MessagePack.lua
@@ -107,16 +150,6 @@ local function float_representation(number)
   end
 end
 
-local function uuid_representation(value)
-  local str = string.gsub(value, "-", "")
-  local buffer = {}
-  for i = 1, #str, 2 do
-    local byte_str =  string.sub(str, i, i + 1)
-    buffer[#buffer + 1] = string.char(tonumber(byte_str, 16))
-  end
-  return table.concat(buffer)
-end
-
 local function inet_representation(value)
   local digits = {}
   -- ipv6
@@ -137,9 +170,9 @@ local function inet_representation(value)
 end
 
 local function list_representation(elements)
-  local buffer = {_M.short_representation(#elements)}
+  local buffer = {short_representation(#elements)}
   for _, value in ipairs(elements) do
-    buffer[#buffer + 1] = _M._value_representation(value, true)
+    buffer[#buffer + 1] = _M.value_representation(value, true)
   end
   return table.concat(buffer)
 end
@@ -152,12 +185,16 @@ local function map_representation(map)
   local buffer = {}
   local size = 0
   for key, value in pairs(map) do
-    buffer[#buffer + 1] = _M._value_representation(key, true)
-    buffer[#buffer + 1] = _M._value_representation(value, true)
+    buffer[#buffer + 1] = _M.value_representation(key, true)
+    buffer[#buffer + 1] = _M.value_representation(value, true)
     size = size + 1
   end
-  table.insert(buffer, 1, _M.short_representation(size))
+  table.insert(buffer, 1, short_representation(size))
   return table.concat(buffer)
+end
+
+local function identity_representation(value)
+  return value
 end
 
 local encoders = {
@@ -170,12 +207,12 @@ local encoders = {
   -- decimal=0x06,
   [constants.types.double]=double_representation,
   [constants.types.float]=float_representation,
-  [constants.types.int]=_M.int_representation,
+  [constants.types.int]=int_representation,
   [constants.types.text]=identity_representation,
   [constants.types.timestamp]=bigint_representation,
   [constants.types.uuid]=uuid_representation,
   [constants.types.varchar]=identity_representation,
-  [constants.types.varint]=_M.int_representation,
+  [constants.types.varint]=int_representation,
   [constants.types.timeuuid]=uuid_representation,
   [constants.types.inet]=inet_representation,
   [constants.types.list]=list_representation,
@@ -199,58 +236,34 @@ local function infer_type(value)
   end
 end
 
-local function value_representation(value, short)
+--
+-- Public interface
+--
+
+_M.int_representation = int_representation
+_M.short_representation = short_representation
+_M.bytes_representation = bytes_representation
+_M.string_map_representation = string_map_representation
+_M.short_bytes_representation = short_bytes_representation
+_M.long_string_representation = long_string_representation
+
+function _M.value_representation(value, short)
   local infered_type = infer_type(value)
   if type(value) == 'table' and value.type and value.value then
     value = value.value
   end
   if infered_type == _M.null then
     if short then
-      return _M.short_representation(-1)
+      return short_representation(-1)
     else
-      return _M.int_representation(-1)
+      return int_representation(-1)
     end
   end
   local representation = encoders[infered_type](value)
   if short then
-    return _M.short_bytes_representation(representation)
+    return short_bytes_representation(representation)
   end
-  return _M.bytes_representation(representation)
-end
-
---
--- Public interface
---
-
-function _M.int_representation(num)
-  return big_endian_representation(num, 4)
-end
-
-function _M.short_representation(num)
-  return big_endian_representation(num, 2)
-end
-
-function _M.long_string_representation(str)
-  return _M.int_representation(#str) .. str
-end
-
-function _M.bytes_representation(bytes)
-  return _M.int_representation(#bytes) .. bytes
-end
-
-function _M.short_bytes_representation(bytes)
-  return _M.short_representation(#bytes) .. bytes
-end
-
-function _M.string_map_representation(map)
-  local buffer = {}
-  local n = 0
-  for k, v in pairs(map) do
-    buffer[#buffer + 1] = string_representation(k)
-    buffer[#buffer + 1] = string_representation(v)
-    n = n + 1
-  end
-  return _M.short_representation(n) .. table.concat(buffer)
+  return bytes_representation(representation)
 end
 
 function _M.values_representation(args)
@@ -258,9 +271,9 @@ function _M.values_representation(args)
     return ""
   end
   local values = {}
-  values[#values + 1] = _M.short_representation(#args)
+  values[#values + 1] = short_representation(#args)
   for _, value in ipairs(args) do
-    values[#values + 1] = value_representation(value)
+    values[#values + 1] = _M.value_representation(value)
   end
   return table.concat(values)
 end
@@ -270,17 +283,17 @@ function _M.batch_representation(queries, batch_type)
   -- <type>
   b[#b + 1] = string.char(batch_type)
   -- <n> (number of queries)
-  b[#b + 1] = _M.short_representation(#queries)
+  b[#b + 1] = short_representation(#queries)
   -- <query_i> (operations)
   for _, query in ipairs(queries) do
     local kind
     local string_or_id
     if type(query.query) == "string" then
-      kind = _M.boolean_representation(false)
-      string_or_id = _M.long_string_representation(query.query)
+      kind = boolean_representation(false)
+      string_or_id = long_string_representation(query.query)
     else
-      kind = _M.boolean_representation(true)
-      string_or_id = _M.short_bytes_representation(query.query.id)
+      kind = boolean_representation(true)
+      string_or_id = short_bytes_representation(query.query.id)
     end
 
     -- The behaviour is sligthly different than from <query_parameters>
@@ -291,7 +304,7 @@ function _M.batch_representation(queries, batch_type)
     if query.args then
       b[#b + 1] = kind .. string_or_id .. _M.values_representation(query.args)
     else
-      b[#b + 1] = kind .. string_or_id .. _M.short_representation(0)
+      b[#b + 1] = kind .. string_or_id .. short_representation(0)
     end
   end
 
