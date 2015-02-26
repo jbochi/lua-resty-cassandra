@@ -74,7 +74,7 @@ local function startup(self)
   return true
 end
 
-function _M.connect(self, contact_points, port)
+function _M:connect(contact_points, port)
   if port == nil then port = 9042 end
   if contact_points == nil then
     return nil, "no contact points provided"
@@ -109,7 +109,7 @@ function _M.connect(self, contact_points, port)
   return true
 end
 
-function _M.set_timeout(self, timeout)
+function _M:set_timeout(timeout)
   local sock = self.sock
   if not sock then
     return nil, "not initialized"
@@ -118,7 +118,7 @@ function _M.set_timeout(self, timeout)
   return sock:settimeout(timeout)
 end
 
-function _M.set_keepalive(self, ...)
+function _M:set_keepalive(...)
   local sock = self.sock
   if not sock then
     return nil, "not initialized"
@@ -128,7 +128,7 @@ function _M.set_keepalive(self, ...)
   return nil, "luasocket does not support reusable sockets"
 end
 
-function _M.get_reused_times(self)
+function _M:get_reused_times()
   local sock = self.sock
   if not sock then
     return nil, "not initialized"
@@ -138,7 +138,7 @@ function _M.get_reused_times(self)
   return nil, "luasocket does not support reusable sockets"
 end
 
-function _M.close(self)
+function _M:close()
   local sock = self.sock
   if not sock then
     return nil, "not initialized"
@@ -171,7 +171,7 @@ function _M.BatchStatement(batch_type)
   return setmetatable({type=batch_type, queries={}}, batch_statement_mt)
 end
 
-function _M.prepare(self, query, options)
+function _M:prepare(query, options)
   if not options then options = {} end
   local body = encoding.long_string_representation(query)
   local response, err = protocol.send_frame_and_get_response(self,
@@ -193,7 +193,7 @@ local default_options = {
   tracing=false
 }
 
-function _M.execute(self, query, args, options)
+function _M:execute(query, args, options)
   local op_code = protocol.query_op_code(query)
   if not options then options = {} end
 
@@ -231,11 +231,11 @@ function _M.execute(self, query, args, options)
   return protocol.parse_response(response)
 end
 
-function _M.set_keyspace(self, keyspace_name)
+function _M:set_keyspace(keyspace_name)
   return self:execute("USE " .. keyspace_name)
 end
 
-function _M.get_trace(self, result)
+function _M:get_trace(result)
   if not result.tracing_id then
     return nil, "No tracing available"
   end
