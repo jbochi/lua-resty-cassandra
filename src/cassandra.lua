@@ -16,7 +16,7 @@ local _M = {
 }
 
 -- create functions for type annotations
-for key, value in pairs(constants.types) do
+for key, _ in pairs(constants.types) do
   _M[key] = function(value)
     return {type=key, value=value}
   end
@@ -30,7 +30,7 @@ _M.null = {type="null", value=nil}
 
 local mt = {__index=_M}
 
-function _M.new(self)
+function _M.new()
   local tcp
   if ngx and ngx.get_phase ~= nil and ngx.get_phase() ~= "init" then
     -- openresty

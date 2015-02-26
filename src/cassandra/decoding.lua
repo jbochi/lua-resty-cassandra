@@ -182,7 +182,7 @@ local function read_list(bytes, type)
   local buffer = create_buffer(bytes)
   local n = read_short(buffer)
   local elements = {}
-  for i = 1, n do
+  for _ = 1, n do
     elements[#elements + 1] = _M.read_value(buffer, element_type, true)
   end
   return elements
@@ -196,7 +196,7 @@ local function read_map(bytes, type)
   local buffer = create_buffer(bytes)
   local n = read_short(buffer)
   local map = {}
-  for i = 1, n do
+  for _ = 1, n do
     local key = _M.read_value(buffer, key_type, true)
     local value = _M.read_value(buffer, value_type, true)
     map[key] = value
