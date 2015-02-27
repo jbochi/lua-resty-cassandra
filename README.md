@@ -284,7 +284,7 @@ for _, rows, page, err in session:execute(query, nil, {auto_paging=true}) do
 end
 ```
 
-## Unit tests
+## Running unit tests
 
 We use `busted` and require `luasocket` to mock `ngx.socket.tcp()`. To run the tests, start a local cassandra instance and run:
 
@@ -298,6 +298,15 @@ $ make test
 ```bash
 $ luarocks install luacov
 $ make coverage
+```
+
+Report will be in `./luacov.report.out`.
+
+## Running linting
+
+```bash
+$ luarocks install luacheck
+$ make lint
 ```
 
 ## Contributors
