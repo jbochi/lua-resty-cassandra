@@ -22,8 +22,6 @@ services:
 script: "busted"
 
 notifications:
-  webhooks:
-    - http://my-url/travis-results
   recipients:
     - jbochi@gmail.com
   email:
