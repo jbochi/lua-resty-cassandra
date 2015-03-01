@@ -322,8 +322,8 @@ Marco Palladino (@thefosk)
 [badge-travis-url]: https://travis-ci.org/jbochi/lua-resty-cassandra
 [badge-travis-image]: https://img.shields.io/travis/jbochi/lua-resty-cassandra.svg?style=flat
 
-[badge-coveralls-url]: https://coveralls.io/r/thibaultCha/lua-resty-cassandra?branch=master
-[badge-coveralls-image]: https://coveralls.io/repos/thibaultCha/lua-resty-cassandra/badge.svg?branch=master
+[badge-coveralls-url]: https://coveralls.io/r/jbochi/lua-resty-cassandra?branch=master
+[badge-coveralls-image]: https://coveralls.io/repos/jbochi/lua-resty-cassandra/badge.svg?branch=master
 
 [badge-version-image]: https://img.shields.io/badge/version-0.5--3-green.svg?style=flat
 
