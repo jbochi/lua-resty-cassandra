@@ -2,7 +2,6 @@ language: erlang
 
 env:
   - LUA=""
-  - LUA="lua5.2"
   - LUA="luajit"
 
 branches:
