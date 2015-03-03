@@ -207,12 +207,22 @@ function _M.execute(self, query, args, options)
   if options.auto_paging then
     local page = 0
     return function(query, paging_state)
+      -- Latest fetched rows have been returned for sure, end the iteration
+      if not paging_state and page > 0 then return nil end
+
       local rows, err = self:execute(query, args, {
         page_size=options.page_size,
         paging_state=paging_state
       })
       page = page + 1
-      return rows.meta.paging_state, rows, page, err
+
+      -- Allow the iterator to return the latest fetched rows
+      local paging_state = rows.meta.paging_state
+      if paging_state == nil and #rows > 0 then
+        paging_state = false
+      end
+
+      return paging_state, rows, page, err
     end, query, nil
   end
 
