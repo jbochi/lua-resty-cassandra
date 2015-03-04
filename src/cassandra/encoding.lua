@@ -20,12 +20,10 @@ end
 local function int_representation(num)
   return big_endian_representation(num, 4)
 end
-_M.int_representation = int_representation
 
 local function short_representation(num)
   return big_endian_representation(num, 2)
 end
-_M.short_representation = short_representation
 
 local function bigint_representation(n)
   local first_byte
@@ -57,22 +55,18 @@ end
 local function string_representation(str)
   return short_representation(#str) .. str
 end
-_M.string_representation = string_representation
 
 local function long_string_representation(str)
   return int_representation(#str) .. str
 end
-_M.long_string_representation = long_string_representation
 
 local function bytes_representation(bytes)
   return int_representation(#bytes) .. bytes
 end
-_M.bytes_representation = bytes_representation
 
 local function short_bytes_representation(bytes)
   return short_representation(#bytes) .. bytes
 end
-_M.short_bytes_representation = short_bytes_representation
 
 local function string_map_representation(map)
   local buffer = {}
@@ -84,12 +78,10 @@ local function string_map_representation(map)
   end
   return short_representation(n) .. table.concat(buffer)
 end
-_M.string_map_representation = string_map_representation
 
 local function boolean_representation(value)
   if value then return "\001" else return "\000" end
 end
-_M.boolean_representation = boolean_representation
 
 -- 'inspired' by https://github.com/fperrad/lua-MessagePack/blob/master/src/MessagePack.lua
 local function double_representation(number)
@@ -180,7 +172,7 @@ end
 local function list_representation(elements)
   local buffer = {short_representation(#elements)}
   for _, value in ipairs(elements) do
-    buffer[#buffer + 1] = _M._value_representation(value, true)
+    buffer[#buffer + 1] = _M.value_representation(value, true)
   end
   return table.concat(buffer)
 end
@@ -193,8 +185,8 @@ local function map_representation(map)
   local buffer = {}
   local size = 0
   for key, value in pairs(map) do
-    buffer[#buffer + 1] = _M._value_representation(key, true)
-    buffer[#buffer + 1] = _M._value_representation(value, true)
+    buffer[#buffer + 1] = _M.value_representation(key, true)
+    buffer[#buffer + 1] = _M.value_representation(value, true)
     size = size + 1
   end
   table.insert(buffer, 1, short_representation(size))
@@ -244,7 +236,18 @@ local function infer_type(value)
   end
 end
 
-local function value_representation(value, short)
+--
+-- Public interface
+--
+
+_M.int_representation = int_representation
+_M.short_representation = short_representation
+_M.bytes_representation = bytes_representation
+_M.string_map_representation = string_map_representation
+_M.short_bytes_representation = short_bytes_representation
+_M.long_string_representation = long_string_representation
+
+function _M.value_representation(value, short)
   local infered_type = infer_type(value)
   if type(value) == 'table' and value.type and value.value then
     value = value.value
@@ -262,20 +265,18 @@ local function value_representation(value, short)
   end
   return bytes_representation(representation)
 end
-_M._value_representation = value_representation
 
-local function values_representation(args)
+function _M.values_representation(args)
   if not args then
     return ""
   end
   local values = {}
   values[#values + 1] = short_representation(#args)
   for _, value in ipairs(args) do
-    values[#values + 1] = value_representation(value)
+    values[#values + 1] = _M.value_representation(value)
   end
   return table.concat(values)
 end
-_M.values_representation = values_representation
 
 function _M.batch_representation(queries, batch_type)
   local b = {}
@@ -301,7 +302,7 @@ function _M.batch_representation(queries, batch_type)
     -- for batch <query_i>:
     --   <kind><string_or_id><n><value_1>...<value_n> (n can be 0, but is required)
     if query.args then
-      b[#b + 1] = kind .. string_or_id .. values_representation(query.args)
+      b[#b + 1] = kind .. string_or_id .. _M.values_representation(query.args)
     else
       b[#b + 1] = kind .. string_or_id .. short_representation(0)
     end

@@ -8,8 +8,8 @@ local function read_error(buffer)
   return 'Cassandra returned error (' .. error_code .. '): "' .. error_message .. '"'
 end
 
-local function read_frame(self, tracing)
-  local header, err, partial = self.sock:receive(8)
+local function read_frame(self)
+  local header, err = self.sock:receive(8)
   if not header then
     return nil, string.format("Failed to read frame header from %s: %s", self.host, err)
   end
@@ -19,9 +19,9 @@ local function read_frame(self, tracing)
   local stream = decoding.read_raw_byte(header_buffer)
   local op_code = decoding.read_raw_byte(header_buffer)
   local length = decoding.read_int(header_buffer)
-  local body, err, partial, tracing_id
+  local body, tracing_id
   if length > 0 then
-    body, err, partial = self.sock:receive(length)
+    body, err = self.sock:receive(length)
     if not body then
       return nil, string.format("Failed to read frame body from %s: %s", self.host, err)
     end
@@ -78,7 +78,7 @@ local function parse_metadata(buffer)
 
   -- Columns metadata
   local columns = {}
-  for j = 1, columns_count do
+  for _ = 1, columns_count do
     local ksname = global_keyspace_name
     local tablename = global_table_name
     if not global_tables_spec then
@@ -118,7 +118,7 @@ local function parse_rows(buffer, metadata)
     end,
     __len = function() return columns_count end
   }
-  for i = 1, rows_count do
+  for _ = 1, rows_count do
     local row = {}
     setmetatable(row, row_mt)
     for j = 1, columns_count do

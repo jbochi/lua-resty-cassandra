@@ -1,6 +1,7 @@
 # lua-resty-cassandra
 
 [![Build Status][badge-travis-image]][badge-travis-url]
+[![Coverage Status][badge-coveralls-image]][badge-coveralls-url]
 ![Module Version][badge-version-image]
 
 Pure Lua Cassandra client using CQL binary protocol v2.
@@ -262,9 +263,9 @@ local rows, err = session:execute(query, nil, {page_size = 500}) -- default page
 assert.same(500, #rows) -- rows contains the 500 first rows
 
 if rows.meta.has_more_pages then
-	local next_rows, err = session:execute(query, nil, {paging_state = rows.meta.paging_state})
+  local next_rows, err = session:execute(query, nil, {paging_state = rows.meta.paging_state})
 
-	assert.same(500, #next_rows) -- next_rows contains the next (and last) 500 rows
+  assert.same(500, #next_rows) -- next_rows contains the next (and last) 500 rows
 end
 ```
 
@@ -283,12 +284,29 @@ for _, rows, page, err in session:execute(query, nil, {auto_paging=true}) do
 end
 ```
 
-## Running tests
+## Running unit tests
 
 We use `busted` and require `luasocket` to mock `ngx.socket.tcp()`. To run the tests, start a local cassandra instance and run:
 
 ```bash
-$ busted
+$ luarocks install busted
+$ make test
+```
+
+## Running coverage
+
+```bash
+$ luarocks install luacov
+$ make coverage
+```
+
+Report will be in `./luacov.report.out`.
+
+## Running linting
+
+```bash
+$ luarocks install luacheck
+$ make lint
 ```
 
 ## Contributors
@@ -303,6 +321,9 @@ Marco Palladino (@thefosk)
 
 [badge-travis-url]: https://travis-ci.org/jbochi/lua-resty-cassandra
 [badge-travis-image]: https://img.shields.io/travis/jbochi/lua-resty-cassandra.svg?style=flat
+
+[badge-coveralls-url]: https://coveralls.io/r/jbochi/lua-resty-cassandra?branch=master
+[badge-coveralls-image]: https://coveralls.io/repos/jbochi/lua-resty-cassandra/badge.svg?branch=master
 
 [badge-version-image]: https://img.shields.io/badge/version-0.5--3-green.svg?style=flat
 

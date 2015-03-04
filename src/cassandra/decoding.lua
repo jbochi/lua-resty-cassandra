@@ -1,11 +1,10 @@
-local _M = {}
-
 local constants = require("cassandra.constants")
 
-local function create_buffer(str)
-  return {str=str, pos=1}
+local _M = {}
+
+local function read_boolean(bytes)
+  return string.byte(bytes) == 1
 end
-_M.create_buffer = create_buffer
 
 local function read_raw(value)
   return value
@@ -34,62 +33,9 @@ local function read_raw_bytes(buffer, n_bytes)
   buffer.pos = buffer.pos + n_bytes
   return bytes
 end
-_M.read_raw_bytes = read_raw_bytes
-
-local function read_raw_byte(buffer)
-  return string.byte(read_raw_bytes(buffer, 1))
-end
-_M.read_raw_byte = read_raw_byte
-
-local function read_int(buffer)
-  return string_to_number(read_raw_bytes(buffer, 4), true)
-end
-_M.read_int = read_int
 
 local function read_short(buffer)
   return string_to_number(read_raw_bytes(buffer, 2), false)
-end
-_M.read_short = read_short
-
-local function read_string(buffer)
-  local str_size = read_short(buffer)
-  return read_raw_bytes(buffer, str_size)
-end
-_M.read_string = read_string
-
-local function read_bytes(buffer)
-  local size = read_int(buffer, true)
-  if size < 0 then
-    return nil
-  end
-  return read_raw_bytes(buffer, size)
-end
-_M.read_bytes = read_bytes
-
-local function read_short_bytes(buffer)
-  local size = read_short(buffer)
-  return read_raw_bytes(buffer, size)
-end
-_M.read_short_bytes = read_short_bytes
-
-local function read_option(buffer)
-  local type_id = read_short(buffer)
-  local type_value = nil
-  if type_id == constants.types.custom then
-    type_value = read_string(buffer)
-  elseif type_id == constants.types.list then
-    type_value = read_option(buffer)
-  elseif type_id == constants.types.map then
-    type_value = {read_option(buffer), read_option(buffer)}
-  elseif type_id == constants.types.set then
-    type_value = read_option(buffer)
-  end
-  return {id=type_id, value=type_value}
-end
-_M.read_option = read_option
-
-local function read_boolean(bytes)
-  return string.byte(bytes) == 1
 end
 
 local function read_bigint(bytes)
@@ -148,19 +94,6 @@ local function read_float(bytes)
   return math.ldexp(mantissa, exponent - 0x7F)
 end
 
-local function read_uuid(bytes)
-  local buffer = {}
-  for i = 1, #bytes do
-    buffer[i] = string.format("%02x", string.byte(bytes, i))
-  end
-  table.insert(buffer, 5, "-")
-  table.insert(buffer, 8, "-")
-  table.insert(buffer, 11, "-")
-  table.insert(buffer, 14, "-")
-  return table.concat(buffer)
-end
-_M.read_uuid = read_uuid
-
 local function read_inet(bytes)
   local buffer = {}
   if #bytes == 16 then
@@ -179,29 +112,88 @@ end
 
 local function read_list(bytes, type)
   local element_type = type.value
-  local buffer = create_buffer(bytes)
+  local buffer = _M.create_buffer(bytes)
   local n = read_short(buffer)
   local elements = {}
-  for i = 1, n do
+  for _ = 1, n do
     elements[#elements + 1] = _M.read_value(buffer, element_type, true)
   end
   return elements
 end
 
-local read_set = read_list
-
 local function read_map(bytes, type)
   local key_type = type.value[1]
   local value_type = type.value[2]
-  local buffer = create_buffer(bytes)
+  local buffer = _M.create_buffer(bytes)
   local n = read_short(buffer)
   local map = {}
-  for i = 1, n do
+  for _ = 1, n do
     local key = _M.read_value(buffer, key_type, true)
     local value = _M.read_value(buffer, value_type, true)
     map[key] = value
   end
   return map
+end
+
+--
+-- Public interface
+--
+
+function _M.create_buffer(str)
+  return {str=str, pos=1}
+end
+
+function _M.read_raw_byte(buffer)
+  return string.byte(read_raw_bytes(buffer, 1))
+end
+
+function _M.read_int(buffer)
+  return string_to_number(read_raw_bytes(buffer, 4), true)
+end
+
+function _M.read_string(buffer)
+  local str_size = read_short(buffer)
+  return read_raw_bytes(buffer, str_size)
+end
+
+function _M.read_bytes(buffer)
+  local size = _M.read_int(buffer, true)
+  if size < 0 then
+    return nil
+  end
+  return read_raw_bytes(buffer, size)
+end
+
+function _M.read_short_bytes(buffer)
+  local size = read_short(buffer)
+  return read_raw_bytes(buffer, size)
+end
+
+function _M.read_option(buffer)
+  local type_id = read_short(buffer)
+  local type_value = nil
+  if type_id == constants.types.custom then
+    type_value = _M.read_string(buffer)
+  elseif type_id == constants.types.list then
+    type_value = _M.read_option(buffer)
+  elseif type_id == constants.types.map then
+    type_value = {_M.read_option(buffer), _M.read_option(buffer)}
+  elseif type_id == constants.types.set then
+    type_value = _M.read_option(buffer)
+  end
+  return {id=type_id, value=type_value}
+end
+
+function _M.read_uuid(bytes)
+  local buffer = {}
+  for i = 1, #bytes do
+    buffer[i] = string.format("%02x", string.byte(bytes, i))
+  end
+  table.insert(buffer, 5, "-")
+  table.insert(buffer, 8, "-")
+  table.insert(buffer, 11, "-")
+  table.insert(buffer, 14, "-")
+  return table.concat(buffer)
 end
 
 local decoders = {
@@ -217,28 +209,27 @@ local decoders = {
   [constants.types.int]=read_signed_number,
   [constants.types.text]=read_raw,
   [constants.types.timestamp]=read_bigint,
-  [constants.types.uuid]=read_uuid,
+  [constants.types.uuid]=_M.read_uuid,
   [constants.types.varchar]=read_raw,
   [constants.types.varint]=read_signed_number,
-  [constants.types.timeuuid]=read_uuid,
+  [constants.types.timeuuid]=_M.read_uuid,
   [constants.types.inet]=read_inet,
   [constants.types.list]=read_list,
   [constants.types.map]=read_map,
-  [constants.types.set]=read_set
+  [constants.types.set]=read_list
 }
 
-local function read_value(buffer, type, short)
+function _M.read_value(buffer, type, short)
   local bytes
   if short then
-    bytes = read_short_bytes(buffer)
+    bytes = _M.read_short_bytes(buffer)
   else
-    bytes = read_bytes(buffer)
+    bytes = _M.read_bytes(buffer)
   end
   if bytes == nil then
     return nil
   end
   return decoders[type.id](bytes, type)
 end
-_M.read_value = read_value
 
 return _M
