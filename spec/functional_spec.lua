@@ -383,18 +383,40 @@ describe("cassandra", function()
       assert.are_not.same(rows_1, rows_2)
     end)
 
-    it("should return an iterator if given an auto_paging option", function()
-      local page_tracker = 0
-      local expected_number_of_pages = 20
+    describe("auto_paging", function()
+      it("should return an iterator if given an auto_paging option", function()
+        local page_tracker = 0
+        for _, rows, page, err in session:execute("SELECT * FROM pagination_test_table", nil, {page_size=10, auto_paging=true}) do
+          assert.falsy(err)
+          page_tracker = page_tracker + 1
+          assert.same(page_tracker, page)
+          assert.same(10, #rows)
+        end
 
-      for _, rows, page, err in session:execute("SELECT * FROM pagination_test_table", nil, {page_size=10, auto_paging=true}) do
-        assert.falsy(err)
-        page_tracker = page_tracker + 1
-        assert.are.same(page_tracker, page)
-        assert.are.same(10, #rows)
-      end
+        assert.same(20, page_tracker)
+      end)
 
-      assert.are.same(expected_number_of_pages, page_tracker)
+      it("should return the latest page of a set", function()
+        local page_tracker = 0
+        for _, rows, page, err in session:execute("SELECT * FROM pagination_test_table", nil, {page_size=199, auto_paging=true}) do
+          assert.falsy(err)
+          page_tracker = page_tracker + 1
+          assert.same(page_tracker, page)
+        end
+
+        assert.same(2, page_tracker)
+
+        -- Even if all results are fetched in the first query
+        page_tracker = 0
+        for _, rows, page, err in session:execute("SELECT * FROM pagination_test_table", nil, {auto_paging=true}) do
+          assert.falsy(err)
+          page_tracker = page_tracker + 1
+          assert.same(page_tracker, page)
+          assert.same(200, #rows)
+        end
+
+        assert.same(1, page_tracker)
+      end)
     end)
   end)
 

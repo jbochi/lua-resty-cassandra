@@ -1,6 +1,7 @@
 ## [Unreleased][unreleased]
 #### Added
 #### Fixed
+- `auto_pagination` option not returning the latest page in most cases
 
 ## [0.5-3] - 2015/03/01
 #### Fixed
