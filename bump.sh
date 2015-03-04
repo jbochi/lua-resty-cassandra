@@ -18,3 +18,5 @@ else
   echo Invalid version: $1
   exit 1
 fi
+
+echo "Don't forget to review the diff and update the CHANGELOG"

@@ -1,6 +1,12 @@
 ## [Unreleased][unreleased]
 #### Added
 #### Fixed
+
+## [0.5-4] - 2015/03/04
+#### Added
+- Better travis configuration (coverage, lua 5.1, 5.2 and luajit)
+
+#### Fixed
 - `auto_pagination` option not returning the latest page in most cases
 
 ## [0.5-3] - 2015/03/01
