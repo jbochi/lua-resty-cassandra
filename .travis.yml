@@ -1,25 +1,32 @@
 language: erlang
 
 env:
-  - LUA=""
-  - LUA="luajit"
+  global:
+    - LUAROCKS=2.2.0
+  matrix:
+    - LUA=lua5.1
+    - LUA=lua5.2
+    - LUA=lua5.3
+    - LUA=luajit
 
 branches:
   only:
     - master
 
 before_install:
-  - sudo apt-get install luajit luarocks
-
-install:
-  - sudo luarocks install luafilesystem 1.6.2
-  - sudo luarocks install busted 1.11.1
+  - bash .travis/setup_lua.sh
+  - sudo luarocks install luafilesystem --from=https://rocks.moonscript.org/dev
+  - sudo luarocks install busted
   - sudo luarocks install luasocket
+  - sudo luarocks install luacov-coveralls
 
 services:
   - cassandra
 
-script: "busted"
+script: "busted --coverage"
+
+after_success:
+  - luacov-coveralls -i cassandra
 
 notifications:
   recipients:
