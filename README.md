@@ -96,7 +96,7 @@ Connects to a single or multiple hosts at the given port.
 > * `ok`: true if connected, false otherwise. Nil of the session doesn't have a socket.
 > * `err`: Any encountered error.
 
-### ok, err = session:setkeepalive(max_idle_timeout, pool_size)  -- Nginx only
+### ok, err = session:set_keepalive(max_idle_timeout, pool_size)  -- Nginx only
 
 Puts the current Cassandra connection immediately into the ngx_lua cosocket connection pool.
 
