@@ -1,5 +1,7 @@
 ## [Unreleased][unreleased]
 #### Added
+- Expose error code (#46)
+
 #### Fixed
 
 ## [0.5-4] - 2015/03/04
