@@ -1,3 +1,21 @@
+local error_codes = {
+  SERVER = 0x0000,
+  PROTOCOL = 0x000A,
+  BAD_CREDENTIALS = 0x0100,
+  UNAVAILABLE_EXCEPTION = 0x1000,
+  OVERLOADED = 0x1001,
+  IS_BOOTSTRAPPING = 0x1002,
+  TRUNCATE_ERROR = 0x1003,
+  WRITE_TIMEOUT = 0x1100,
+  READ_TIMEOUT = 0x1200,
+  SYNTAX_ERROR = 0x2000,
+  UNAUTHORIZED = 0x2100,
+  INVALID = 0x2200,
+  CONFIG_ERROR = 0x2300,
+  ALREADY_EXISTS = 0x2400,
+  UNPREPARED = 0x2500
+}
+
 return {
   version_codes = {
     REQUEST=0x02,
@@ -58,22 +76,23 @@ return {
     PREPARED=0x04,
     SCHEMA_CHANGE=0x05
   },
-  error_codes = {
-    [0x0000]="Server error",
-    [0x000A]="Protocol error",
-    [0x0100]="Bad credentials",
-    [0x1000]="Unavailable exception",
-    [0x1001]="Overloaded",
-    [0x1002]="Is_bootstrapping",
-    [0x1003]="Truncate_error",
-    [0x1100]="Write_timeout",
-    [0x1200]="Read_timeout",
-    [0x2000]="Syntax_error",
-    [0x2100]="Unauthorized",
-    [0x2200]="Invalid",
-    [0x2300]="Config_error",
-    [0x2400]="Already_exists",
-    [0x2500]="Unprepared"
+  error_codes = error_codes,
+  error_codes_translation = {
+    [error_codes.SERVER]="Server error",
+    [error_codes.PROTOCOL]="Protocol error",
+    [error_codes.BAD_CREDENTIALS]="Bad credentials",
+    [error_codes.UNAVAILABLE_EXCEPTION]="Unavailable exception",
+    [error_codes.OVERLOADED]="Overloaded",
+    [error_codes.IS_BOOTSTRAPPING]="Is_bootstrapping",
+    [error_codes.TRUNCATE_ERROR]="Truncate_error",
+    [error_codes.WRITE_TIMEOUT]="Write_timeout",
+    [error_codes.READ_TIMEOUT]="Read_timeout",
+    [error_codes.SYNTAX_ERROR]="Syntax_error",
+    [error_codes.UNAUTHORIZED]="Unauthorized",
+    [error_codes.INVALID]="Invalid",
+    [error_codes.CONFIG_ERROR]="Config_error",
+    [error_codes.ALREADY_EXISTS]="Already_exists",
+    [error_codes.UNPREPARED]="Unprepared"
   },
   types = {
     custom=0x00,

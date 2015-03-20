@@ -134,6 +134,14 @@ Closes the current connection and returns the status.
 
 ## Client methods
 
+All errors returned by functions in this section are tables with the following properties:
+
+> * `code`: A string from one of the `error_codes` in `cassandra.contants`.
+> * `raw_message`: The error message being returned by Cassandra.
+> * `message`: A constructed error message with `code` + `raw_message`.
+
+Error tables implement the `__tostring` method and are thus printable. A stringified error table will outputs its `message` property.
+
 ### ok, err = session:set_keyspace(keyspace_name)
 
 Sets session keyspace to the given `keyspace_name`.
