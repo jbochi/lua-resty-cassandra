@@ -2,9 +2,17 @@ local constants = require("cassandra.constants")
 local encoding = require("cassandra.encoding")
 local decoding = require("cassandra.decoding")
 
-local error_mt = {
+local error_mt = {}
+error_mt = {
   __tostring = function(self)
     return self.message
+  end,
+  __concat = function (a, b)
+    if getmetatable(a) == error_mt then
+      return a.message .. b
+    else
+      return a .. b.message
+    end
   end
 }
 
@@ -15,10 +23,11 @@ local function cassandra_error(message, code, raw_message)
 end
 
 local function read_error(buffer)
-  local error_code = constants.error_codes[decoding.read_int(buffer)]
+  local error_code = decoding.read_int(buffer)
+  local error_code_translation = constants.error_codes_translation[error_code]
   local error_message = decoding.read_string(buffer)
   return cassandra_error(
-    'Cassandra returned error (' .. error_code .. '): "' .. error_message .. '"',
+    'Cassandra returned error (' .. error_code_translation .. '): "' .. error_message .. '"',
     error_code,
     error_message
   )
