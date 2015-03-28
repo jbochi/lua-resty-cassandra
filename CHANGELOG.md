@@ -1,8 +1,14 @@
 ## [Unreleased][unreleased]
 #### Added
+
+#### Fixed
+
+## [0.5-5] - 2015/03/28
+#### Added
 - Expose error code (#46)
 
 #### Fixed
+- Fix documentation for set_keepalive()
 
 ## [0.5-4] - 2015/03/04
 #### Added
