@@ -1,5 +1,7 @@
 # lua-resty-cassandra
 
+[![Join the chat at https://gitter.im/jbochi/lua-resty-cassandra](https://badges.gitter.im/Join%20Chat.svg)](https://gitter.im/jbochi/lua-resty-cassandra?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
+
 [![Build Status][badge-travis-image]][badge-travis-url]
 [![Coverage Status][badge-coveralls-image]][badge-coveralls-url]
 ![Module Version][badge-version-image]
