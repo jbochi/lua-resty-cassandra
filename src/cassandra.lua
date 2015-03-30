@@ -216,9 +216,14 @@ function _M:execute(query, args, options)
       })
       page = page + 1
 
-      -- Allow the iterator to return the latest fetched rows
-      local paging_state = rows.meta.paging_state
-      if paging_state == nil and #rows > 0 then
+      -- If we have some results, retrieve the paging_state
+      local paging_state
+      if rows ~= nil then
+        paging_state = rows.meta.paging_state
+      end
+
+      -- Allow the iterator to return the latest page of rows or an error
+      if err or (paging_state == nil and rows and #rows > 0) then
         paging_state = false
       end
 

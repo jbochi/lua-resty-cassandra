@@ -427,6 +427,20 @@ describe("cassandra", function()
 
         assert.same(1, page_tracker)
       end)
+
+      it("should return valid parameters if no results found", function()
+        -- No results ~= no rows. This test validates the behaviour of err being
+        -- returned if no results are returned (most likely because of an invalid query)
+        local page_tracker = 0
+        for _, rows, page, err in session:execute("SELECT * FROM pagination_test_table WHERE id = 500", nil, {auto_paging=true}) do
+          assert.truthy(err) -- id is not a valid column
+          page_tracker = page_tracker + 1
+        end
+
+        -- Assert the loop has been run once.
+        assert.same(1, page_tracker)
+      end)
+
     end)
   end)
 
