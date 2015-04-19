@@ -10,7 +10,7 @@ local CQL_VERSION = "3.0.0"
 math.randomseed(ngx and ngx.time() or os.time())
 
 local _M = {
-  version="0.5-5",
+  version="0.5-6",
   consistency=constants.consistency,
   batch_types=constants.batch_types
 }

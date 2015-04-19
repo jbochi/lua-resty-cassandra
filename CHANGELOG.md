@@ -3,6 +3,11 @@
 
 #### Fixed
 
+
+## [0.5-6] - 2015/04/19
+#### Fixed
+- Accessing nil rows in auto_paging (#50)
+
 ## [0.5-5] - 2015/03/28
 #### Added
 - Expose error code (#46)
