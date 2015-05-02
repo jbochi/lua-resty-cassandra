@@ -74,6 +74,12 @@ local function startup(self)
   return true
 end
 
+local function split(str)
+  local fields = {}
+  str:gsub("([^:]+)", function(c) fields[#fields+1] = c end)
+  return fields[1], fields[2]
+end
+
 function _M:connect(contact_points, port)
   if port == nil then port = 9042 end
   if contact_points == nil then
@@ -91,8 +97,14 @@ function _M:connect(contact_points, port)
     return nil, "session does not have a socket, create a new session first."
   end
   local ok, err
-  for _, host in ipairs(contact_points) do
-    ok, err = sock:connect(host, port)
+  for _, contact_point in ipairs(contact_points) do
+    -- Extract port if string is of the form "host:port"
+    local host, host_port = split(contact_point)
+    -- Default port is the one given as parameter
+    if not host_port then
+      host_port = port
+    end
+    ok, err = sock:connect(host, host_port)
     if ok then
       self.host = host
       break

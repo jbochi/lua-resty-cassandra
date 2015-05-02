@@ -90,7 +90,8 @@ Connects to a single or multiple hosts at the given port.
 > **Parameters:**
 >
 > * `contact_points`: A string or an array of strings (hosts) to connect to.
-> * `port`: The port number
+>   * **Note:** If you wish to give a different port to one of those hosts, format the string as: "host:port" for that specific contact point. The specified `port` value will overwrite the `port` argument of `connect` for that contact point.
+> * `port`: The port number. **Default:** `9042`.
 
 > **Return values:**
 >

@@ -62,6 +62,15 @@ describe("cassandra", function()
       assert.truthy(connected)
     end)
 
+    it("should be possible to send a list of hosts with ports for connection", function()
+      -- If a contact point is of form "host:port", this port will overwrite the one given as parameter of `connect`
+      local new_session = cassandra.new()
+      new_session:set_timeout(1000)
+      local connected, err = new_session:connect({"127.0.0.1:9042"}, 9999)
+      assert.falsy(err)
+      assert.truthy(connected)
+    end)
+
     it("should try another host if it fails to connect", function()
       local new_session = cassandra.new()
       new_session:set_timeout(1000)
