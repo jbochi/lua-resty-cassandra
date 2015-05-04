@@ -74,7 +74,7 @@ local function startup(self)
   return true
 end
 
-local function split(str)
+local function split_by_port(str)
   local fields = {}
   str:gsub("([^:]+)", function(c) fields[#fields+1] = c end)
   return fields[1], fields[2]
@@ -99,7 +99,7 @@ function _M:connect(contact_points, port)
   local ok, err
   for _, contact_point in ipairs(contact_points) do
     -- Extract port if string is of the form "host:port"
-    local host, host_port = split(contact_point)
+    local host, host_port = split_by_port(contact_point)
     -- Default port is the one given as parameter
     if not host_port then
       host_port = port
