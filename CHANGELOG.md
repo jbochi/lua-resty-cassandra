@@ -3,6 +3,9 @@
 
 #### Fixed
 
+## [0.5-7] - 2015/05/05
+#### Added
+- Accepting multiple hosts with different ports when connecting (#55)
 
 ## [0.5-6] - 2015/04/19
 #### Fixed

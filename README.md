@@ -335,7 +335,7 @@ Marco Palladino (@thefosk)
 [badge-coveralls-url]: https://coveralls.io/r/jbochi/lua-resty-cassandra?branch=master
 [badge-coveralls-image]: https://coveralls.io/repos/jbochi/lua-resty-cassandra/badge.svg?branch=master
 
-[badge-version-image]: https://img.shields.io/badge/version-0.5--6-green.svg?style=flat
+[badge-version-image]: https://img.shields.io/badge/version-0.5--7-green.svg?style=flat
 
 [luarocks-url]: https://luarocks.org
 
