@@ -21,6 +21,10 @@ return {
     REQUEST=0x02,
     RESPONSE=0x82
   },
+  flags = {
+    compression=0x01, -- not implemented
+    tracing=0x02
+  },
   op_codes = {
     ERROR=0x00,
     STARTUP=0x01,

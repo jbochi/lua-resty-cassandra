@@ -243,6 +243,7 @@ end
 _M.int_representation = int_representation
 _M.short_representation = short_representation
 _M.bytes_representation = bytes_representation
+_M.boolean_representation = boolean_representation
 _M.string_map_representation = string_map_representation
 _M.short_bytes_representation = short_bytes_representation
 _M.long_string_representation = long_string_representation
@@ -276,40 +277,6 @@ function _M.values_representation(args)
     values[#values + 1] = _M.value_representation(value)
   end
   return table.concat(values)
-end
-
-function _M.batch_representation(queries, batch_type)
-  local b = {}
-  -- <type>
-  b[#b + 1] = string.char(batch_type)
-  -- <n> (number of queries)
-  b[#b + 1] = short_representation(#queries)
-  -- <query_i> (operations)
-  for _, query in ipairs(queries) do
-    local kind
-    local string_or_id
-    if type(query.query) == "string" then
-      kind = boolean_representation(false)
-      string_or_id = long_string_representation(query.query)
-    else
-      kind = boolean_representation(true)
-      string_or_id = short_bytes_representation(query.query.id)
-    end
-
-    -- The behaviour is sligthly different than from <query_parameters>
-    -- for <query_parameters>:
-    --   [<n><value_1>...<value_n>] (n cannot be 0), otherwise is being mixed up with page_size
-    -- for batch <query_i>:
-    --   <kind><string_or_id><n><value_1>...<value_n> (n can be 0, but is required)
-    if query.args then
-      b[#b + 1] = kind .. string_or_id .. _M.values_representation(query.args)
-    else
-      b[#b + 1] = kind .. string_or_id .. short_representation(0)
-    end
-  end
-
-  -- <type><n><query_1>...<query_n>
-  return table.concat(b)
 end
 
 return _M

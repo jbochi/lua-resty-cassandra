@@ -17,9 +17,11 @@ error_mt = {
 }
 
 local function cassandra_error(message, code, raw_message)
-  local err = {message=message, code=code, raw_message=raw_message}
-  setmetatable(err, error_mt)
-  return err
+  return setmetatable({
+    message=message,
+    code=code,
+    raw_message=raw_message
+  }, error_mt)
 end
 
 local function read_error(buffer)
@@ -134,12 +136,12 @@ local function parse_rows(buffer, metadata)
   local values = {}
   local row_mt = {
     __index = function(t, i)
-    -- allows field access by position/index, not column name only
-    local column = columns[i]
-    if column then
-      return t[column.name]
-    end
-    return nil
+      -- allows field access by position/index, not column name only
+      local column = columns[i]
+      if column then
+        return t[column.name]
+      end
+      return nil
     end,
     __len = function() return columns_count end
   }
@@ -156,14 +158,80 @@ local function parse_rows(buffer, metadata)
   return values
 end
 
-local function query_representation(query)
-  if type(query) == "string" then
-    return encoding.long_string_representation(query)
-  elseif query.is_batch_statement then
-    return query:representation()
-  else
-    return encoding.short_bytes_representation(query.id)
+-- Represent a <query_parameters>
+-- <consistency><flags>[<n><value_1>...<value_n>][<result_page_size>][<paging_state>][<serial_consistency>]
+local function query_parameters_representation(args, options)
+  -- <flags>
+  local flags_repr = 0
+
+  if args then
+    flags_repr = setbit(flags_repr, constants.query_flags.VALUES)
   end
+
+  local result_page_size = ""
+  if options.page_size > 0 then
+    flags_repr = setbit(flags_repr, constants.query_flags.PAGE_SIZE)
+    result_page_size = encoding.int_representation(options.page_size)
+  end
+
+  local paging_state = ""
+  if options.paging_state then
+    flags_repr = setbit(flags_repr, constants.query_flags.PAGING_STATE)
+    paging_state = encoding.bytes_representation(options.paging_state)
+  end
+
+  -- <query_parameters>
+  return encoding.short_representation(options.consistency_level) ..
+    string.char(flags_repr) .. encoding.values_representation(args) ..
+    result_page_size .. paging_state
+end
+
+-- Represents <query><query_parameters>
+local function query_representation(query, args, options)
+  return encoding.long_string_representation(query) .. query_parameters_representation(args, options)
+end
+
+-- Represents <id><query_parameters>
+local function execute_representation(id, args, options)
+  return encoding.short_bytes_representation(id) .. query_parameters_representation(args, options)
+end
+
+-- Represents <type><n><query_1>...<query_n><consistency>
+-- where <query_n> must be
+--   <kind><string_or_id><n><value_1>...<value_n>
+local function batch_representation(batch, options)
+  local queries = batch.queries
+  local b = {}
+  -- <type>
+  b[#b + 1] = string.char(batch.type)
+  -- <n> (number of queries)
+  b[#b + 1] = encoding.short_representation(#queries)
+  -- <query_n> (operations)
+  for _, query in ipairs(queries) do
+    local kind
+    local string_or_id
+    if type(query.query) == "string" then
+      kind = encoding.boolean_representation(false)
+      string_or_id = encoding.long_string_representation(query.query)
+    else
+      kind = encoding.boolean_representation(true)
+      string_or_id = encoding.short_bytes_representation(query.query.id)
+    end
+
+    -- The behaviour is sligthly different than from <query_parameters>
+    -- for <query_parameters>:
+    --   [<n><value_1>...<value_n>] (n cannot be 0), otherwise is being mixed up with page_size
+    -- for batch <query_n>:
+    --   <kind><string_or_id><n><value_1>...<value_n> (n can be 0, but is required)
+    if query.args then
+      b[#b + 1] = kind .. string_or_id .. encoding.values_representation(query.args)
+    else
+      b[#b + 1] = kind .. string_or_id .. encoding.short_representation(0)
+    end
+  end
+
+  -- <type><n><query_1>...<query_n><consistency>
+  return table.concat(b)..encoding.short_representation(options.consistency_level)
 end
 
 --
@@ -171,6 +239,23 @@ end
 --
 
 local _M = {}
+
+function _M.op_code_and_frame_body(op, args, options)
+  local op_code, representation
+  -- Determine if op is a query, statement, or batch
+  if type(op) == "string" then
+    op_code = constants.op_codes.QUERY
+    representation = query_representation(op, args, options)
+  elseif op.is_batch_statement then
+    op_code = constants.op_codes.BATCH
+    representation = batch_representation(op, options)
+  else
+    op_code = constants.op_codes.EXECUTE
+    representation = execute_representation(op.id, args, options)
+  end
+
+  return op_code, representation
+end
 
 function _M.parse_prepared_response(response)
   local buffer = response.buffer
@@ -232,51 +317,9 @@ function _M.parse_response(response)
   return result
 end
 
-function _M.query_op_code(query)
-  if type(query) == "string" then
-    return constants.op_codes.QUERY
-  elseif query.is_batch_statement then
-    return constants.op_codes.BATCH
-  else
-    return constants.op_codes.EXECUTE
-  end
-end
-
-function _M.frame_body(query, args, options)
-  -- Determine if query is a query, statement, or batch
-  local query_repr = query_representation(query)
-
-  -- Flags of the <query_parameters>
-  local flags_repr = 0
-
-  if args then
-    flags_repr = setbit(flags_repr, constants.query_flags.VALUES)
-  end
-
-  local result_page_size = ""
-  if options.page_size > 0 then
-    flags_repr = setbit(flags_repr, constants.query_flags.PAGE_SIZE)
-    result_page_size = encoding.int_representation(options.page_size)
-  end
-
-  local paging_state = ""
-  if options.paging_state then
-    flags_repr = setbit(flags_repr, constants.query_flags.PAGING_STATE)
-    paging_state = encoding.bytes_representation(options.paging_state)
-  end
-
-  -- <query_parameters>: <consistency><flags>[<n><value_i><...>][<result_page_size>][<paging_state>]
-  local query_parameters = encoding.short_representation(options.consistency_level) ..
-    string.char(flags_repr) .. encoding.values_representation(args) ..
-    result_page_size .. paging_state
-
-  -- frame body: <query><query_parameters>
-  return query_repr .. query_parameters
-end
-
 function _M.send_frame_and_get_response(self, op_code, body, tracing)
   local version = string.char(constants.version_codes.REQUEST)
-  local flags = tracing and '\002' or '\000'
+  local flags = tracing and constants.flags.tracing or '\000'
   local stream_id = '\000'
   local length = encoding.int_representation(#body)
   local frame = version .. flags .. stream_id .. string.char(op_code) .. length .. body

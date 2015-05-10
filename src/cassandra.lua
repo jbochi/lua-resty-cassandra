@@ -11,6 +11,7 @@ math.randomseed(ngx and ngx.time() or os.time())
 
 local _M = {
   version="0.5-7",
+  protocol_version="v2",
   consistency=constants.consistency,
   batch_types=constants.batch_types
 }
@@ -168,9 +169,6 @@ local batch_statement_mt = {
     add=function(self, query, args)
       table.insert(self.queries, {query=query, args=args})
     end,
-    representation=function(self)
-      return encoding.batch_representation(self.queries, self.type)
-    end,
     is_batch_statement = true
   }
 }
@@ -206,7 +204,6 @@ local default_options = {
 }
 
 function _M:execute(query, args, options)
-  local op_code = protocol.query_op_code(query)
   if not options then options = {} end
 
   -- Default options
@@ -243,7 +240,7 @@ function _M:execute(query, args, options)
     end, query, nil
   end
 
-  local frame_body = protocol.frame_body(query, args, options)
+  local op_code, frame_body = protocol.op_code_and_frame_body(query, args, options)
 
   -- Send frame
   local response, err = protocol.send_frame_and_get_response(self, op_code, frame_body, options.tracing)
