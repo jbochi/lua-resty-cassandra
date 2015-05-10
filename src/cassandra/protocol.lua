@@ -36,14 +36,14 @@ local function read_error(buffer)
 end
 
 local function read_frame(self)
-  local header, err = self.sock:receive(8)
+  local header, err = self.sock:receive(9)
   if not header then
     return nil, string.format("Failed to read frame header from %s: %s", self.host, err)
   end
   local header_buffer = decoding.create_buffer(header)
   local version = decoding.read_raw_byte(header_buffer)
   local flags = decoding.read_raw_byte(header_buffer)
-  local stream = decoding.read_raw_byte(header_buffer)
+  local stream = decoding.read_short(header_buffer)
   local op_code = decoding.read_raw_byte(header_buffer)
   local length = decoding.read_int(header_buffer)
   local body, tracing_id
@@ -59,7 +59,7 @@ local function read_frame(self)
     error("Invalid response version")
   end
   local body_buffer = decoding.create_buffer(body)
-  if flags == 0x02 then -- tracing
+  if flags == constants.flags.TRACING then -- tracing
     tracing_id = decoding.read_uuid(string.sub(body, 1, 16))
     body_buffer.pos = 17
   end
@@ -196,7 +196,7 @@ local function execute_representation(id, args, options)
   return encoding.short_bytes_representation(id) .. query_parameters_representation(args, options)
 end
 
--- Represents <type><n><query_1>...<query_n><consistency>
+-- Represents <type><n><query_1>...<query_n><consistency><flags>[<serial_consistency>][<timestamp>]
 -- where <query_n> must be
 --   <kind><string_or_id><n><value_1>...<value_n>
 local function batch_representation(batch, options)
@@ -230,8 +230,10 @@ local function batch_representation(batch, options)
     end
   end
 
-  -- <type><n><query_1>...<query_n><consistency>
-  return table.concat(b)..encoding.short_representation(options.consistency_level)
+  local flags = string.char(0)
+
+  -- <type><n><query_1>...<query_n><consistency><flags>
+  return table.concat(b) .. encoding.short_representation(options.consistency_level) .. flags
 end
 
 --
@@ -301,11 +303,23 @@ function _M.parse_response(response)
       keyspace=decoding.read_string(buffer)
     }
   elseif kind == constants.result_kinds.SCHEMA_CHANGE then
+    local change_type = decoding.read_string(buffer)
+    local target = decoding.read_string(buffer)
+    local keyspace = decoding.read_string(buffer)
+    local table, user_type
+    if target == "TABLE" then
+      table = decoding.read_string(buffer)
+    end
+    if target == "TYPE" then
+      user_type = decoding.read_string(buffer)
+    end
     result = {
       type="SCHEMA_CHANGE",
-      change=decoding.read_string(buffer),
-      keyspace=decoding.read_string(buffer),
-      table=decoding.read_string(buffer)
+      change_type=change_type,
+      target=target,
+      keyspace=keyspace,
+      table=table,
+      user_type=user_type
     }
   else
     error(string.format("Invalid result kind: %x", kind))
@@ -319,8 +333,8 @@ end
 
 function _M.send_frame_and_get_response(self, op_code, body, tracing)
   local version = string.char(constants.version_codes.REQUEST)
-  local flags = tracing and constants.flags.tracing or '\000'
-  local stream_id = '\000'
+  local flags = tracing and constants.flags.TRACING or '\000'
+  local stream_id = encoding.short_representation(0)
   local length = encoding.int_representation(#body)
   local frame = version .. flags .. stream_id .. string.char(op_code) .. length .. body
 

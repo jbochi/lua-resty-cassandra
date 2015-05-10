@@ -18,12 +18,12 @@ local error_codes = {
 
 return {
   version_codes = {
-    REQUEST=0x02,
-    RESPONSE=0x82
+    REQUEST=0x03,
+    RESPONSE=0x83
   },
   flags = {
-    compression=0x01, -- not implemented
-    tracing=0x02
+    COMPRESSION=0x01, -- not implemented
+    TRACING=0x02
   },
   op_codes = {
     ERROR=0x00,
@@ -65,7 +65,10 @@ return {
   query_flags = {
     VALUES=0x01,
     PAGE_SIZE=0x04,
-    PAGING_STATE=0x08
+    PAGING_STATE=0x08,
+    SERIAL_CONSISTENCY=0x10, -- not implemented
+    DEFAULT_TIMESTAMP=0x20, -- not implemented
+    NAMED_VALUES=0x40 -- not implemented
   },
   rows_flags = {
     GLOBAL_TABLES_SPEC=0x01,

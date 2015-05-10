@@ -170,9 +170,9 @@ local function inet_representation(value)
 end
 
 local function list_representation(elements)
-  local buffer = {short_representation(#elements)}
+  local buffer = {int_representation(#elements)}
   for _, value in ipairs(elements) do
-    buffer[#buffer + 1] = _M.value_representation(value, true)
+    buffer[#buffer + 1] = _M.value_representation(value)
   end
   return table.concat(buffer)
 end
@@ -185,12 +185,11 @@ local function map_representation(map)
   local buffer = {}
   local size = 0
   for key, value in pairs(map) do
-    buffer[#buffer + 1] = _M.value_representation(key, true)
-    buffer[#buffer + 1] = _M.value_representation(value, true)
+    buffer[#buffer + 1] = _M.value_representation(key)
+    buffer[#buffer + 1] = _M.value_representation(value)
     size = size + 1
   end
-  table.insert(buffer, 1, short_representation(size))
-  return table.concat(buffer)
+  return int_representation(size) .. table.concat(buffer)
 end
 
 local function identity_representation(value)
@@ -248,25 +247,6 @@ _M.string_map_representation = string_map_representation
 _M.short_bytes_representation = short_bytes_representation
 _M.long_string_representation = long_string_representation
 
-function _M.value_representation(value, short)
-  local infered_type = infer_type(value)
-  if type(value) == 'table' and value.type and value.value then
-    value = value.value
-  end
-  if infered_type == _M.null then
-    if short then
-      return short_representation(-1)
-    else
-      return int_representation(-1)
-    end
-  end
-  local representation = encoders[infered_type](value)
-  if short then
-    return short_bytes_representation(representation)
-  end
-  return bytes_representation(representation)
-end
-
 function _M.values_representation(args)
   if not args then
     return ""
@@ -277,6 +257,18 @@ function _M.values_representation(args)
     values[#values + 1] = _M.value_representation(value)
   end
   return table.concat(values)
+end
+
+function _M.value_representation(value)
+  local infered_type = infer_type(value)
+  if type(value) == 'table' and value.type and value.value then
+    value = value.value
+  end
+  if infered_type == _M.null then
+    return int_representation(-1)
+  end
+  local representation = encoders[infered_type](value)
+  return bytes_representation(representation)
 end
 
 return _M

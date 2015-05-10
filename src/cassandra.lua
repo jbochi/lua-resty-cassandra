@@ -116,7 +116,11 @@ function _M:connect(contact_points, port)
   end
   if not self.initialized then
     --todo: not tested
-    startup(self)
+    local _
+    _, err = startup(self)
+    if err then
+      return false, err
+    end
     self.initialized = true
   end
   return true
@@ -205,7 +209,6 @@ local default_options = {
 
 function _M:execute(query, args, options)
   if not options then options = {} end
-
   -- Default options
   for k, v in pairs(default_options) do
     if options[k] == nil then
@@ -215,18 +218,18 @@ function _M:execute(query, args, options)
 
   if options.auto_paging then
     local page = 0
-    return function(query, paging_state)
+    return function(paginated_query, paging_state)
       -- Latest fetched rows have been returned for sure, end the iteration
       if not paging_state and page > 0 then return nil end
 
-      local rows, err = self:execute(query, args, {
+      local rows, err = self:execute(paginated_query, args, {
         page_size=options.page_size,
         paging_state=paging_state
       })
       page = page + 1
 
       -- If we have some results, retrieve the paging_state
-      local paging_state
+      paging_state = nil
       if rows ~= nil then
         paging_state = rows.meta.paging_state
       end
@@ -244,7 +247,6 @@ function _M:execute(query, args, options)
 
   -- Send frame
   local response, err = protocol.send_frame_and_get_response(self, op_code, frame_body, options.tracing)
-
   -- Check response errors
   if not response then
     return nil, err

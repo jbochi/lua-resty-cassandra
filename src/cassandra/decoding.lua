@@ -34,10 +34,6 @@ local function read_raw_bytes(buffer, n_bytes)
   return bytes
 end
 
-local function read_short(buffer)
-  return string_to_number(read_raw_bytes(buffer, 2), false)
-end
-
 local function read_bigint(bytes)
   local b1, b2, b3, b4, b5, b6, b7, b8 = string.byte(bytes, 1, 8)
   if b1 < 0x80 then
@@ -113,10 +109,10 @@ end
 local function read_list(bytes, type)
   local element_type = type.value
   local buffer = _M.create_buffer(bytes)
-  local n = read_short(buffer)
+  local n = _M.read_int(buffer)
   local elements = {}
   for _ = 1, n do
-    elements[#elements + 1] = _M.read_value(buffer, element_type, true)
+    elements[#elements + 1] = _M.read_value(buffer, element_type)
   end
   return elements
 end
@@ -125,11 +121,11 @@ local function read_map(bytes, type)
   local key_type = type.value[1]
   local value_type = type.value[2]
   local buffer = _M.create_buffer(bytes)
-  local n = read_short(buffer)
+  local n = _M.read_int(buffer)
   local map = {}
   for _ = 1, n do
-    local key = _M.read_value(buffer, key_type, true)
-    local value = _M.read_value(buffer, value_type, true)
+    local key = _M.read_value(buffer, key_type)
+    local value = _M.read_value(buffer, value_type)
     map[key] = value
   end
   return map
@@ -147,12 +143,16 @@ function _M.read_raw_byte(buffer)
   return string.byte(read_raw_bytes(buffer, 1))
 end
 
+function _M.read_short(buffer)
+  return string_to_number(read_raw_bytes(buffer, 2), false)
+end
+
 function _M.read_int(buffer)
   return string_to_number(read_raw_bytes(buffer, 4), true)
 end
 
 function _M.read_string(buffer)
-  local str_size = read_short(buffer)
+  local str_size = _M.read_short(buffer)
   return read_raw_bytes(buffer, str_size)
 end
 
@@ -165,12 +165,12 @@ function _M.read_bytes(buffer)
 end
 
 function _M.read_short_bytes(buffer)
-  local size = read_short(buffer)
+  local size = _M.read_short(buffer)
   return read_raw_bytes(buffer, size)
 end
 
 function _M.read_option(buffer)
-  local type_id = read_short(buffer)
+  local type_id = _M.read_short(buffer)
   local type_value = nil
   if type_id == constants.types.custom then
     type_value = _M.read_string(buffer)
@@ -219,13 +219,8 @@ local decoders = {
   [constants.types.set]=read_list
 }
 
-function _M.read_value(buffer, type, short)
-  local bytes
-  if short then
-    bytes = _M.read_short_bytes(buffer)
-  else
-    bytes = _M.read_bytes(buffer)
-  end
+function _M.read_value(buffer, type)
+  local bytes = _M.read_bytes(buffer)
   if bytes == nil then
     return nil
   end

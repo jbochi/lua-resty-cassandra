@@ -212,6 +212,7 @@ describe("cassandra", function()
   end)
 
   describe("Real use-case", function()
+    local table_created, err
 
     setup(function()
       table_created, err = session:execute [[
@@ -233,9 +234,6 @@ describe("cassandra", function()
     end)
 
     describe("DDL statements", function()
-      it("should be possible to create a table", function()
-        assert.same("users", table_created.table)
-      end)
 
       it("should not be possible to create a table twice", function()
         local table_created, err = session:execute [[
@@ -249,6 +247,54 @@ describe("cassandra", function()
         assert.same(constants.error_codes.ALREADY_EXISTS, err.code)
         assert.same('Cannot add already existing column family "users" to keyspace "lua_tests"', err.raw_message)
         assert.same('Cassandra returned error (Already_exists): "Cannot add already existing column family "users" to keyspace "lua_tests""', tostring(err))
+      end)
+
+      it("should parse a TABLE SCHEMA_CHANGE statement result", function()
+        assert.same({
+          change_type = "CREATED",
+          keyspace = "lua_tests",
+          table = "users",
+          target = "TABLE",
+          type = "SCHEMA_CHANGE"
+        }, table_created)
+      end)
+
+      it("should parse a TYPE SCHEMA_CHANGE statement result", function()
+        local type_created, err = session:execute [[
+          CREATE TYPE IF NOT EXISTS new_type (
+            key uuid,
+            value text
+          )
+        ]]
+        assert.falsy(err)
+        assert.same({
+          change_type = "CREATED",
+          keyspace = "lua_tests",
+          target = "TYPE",
+          type = "SCHEMA_CHANGE",
+          user_type = "new_type"
+        }, type_created)
+      end)
+
+      it("should parse a KEYSPACE SCHEMA_CHANGE statement result", function()
+        local keyspace_created, err = session:execute [[
+          CREATE KEYSPACE lua_tests_keyspace_test
+            WITH REPLICATION = { 'class' : 'SimpleStrategy', 'replication_factor' : 3 }
+        ]]
+        assert.falsy(err)
+        assert.same({
+          change_type = "CREATED",
+          keyspace = "lua_tests_keyspace_test",
+          target = "KEYSPACE",
+          type = "SCHEMA_CHANGE"
+        }, keyspace_created)
+
+        finally(function()
+          local keyspace_created, err = session:execute("DROP KEYSPACE lua_tests_keyspace_test")
+          if err then
+            error(err)
+          end
+        end)
       end)
     end)
 
