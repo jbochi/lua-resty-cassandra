@@ -68,17 +68,6 @@ local function short_bytes_representation(bytes)
   return short_representation(#bytes) .. bytes
 end
 
-local function string_map_representation(map)
-  local buffer = {}
-  local n = 0
-  for k, v in pairs(map) do
-    buffer[#buffer + 1] = string_representation(k)
-    buffer[#buffer + 1] = string_representation(v)
-    n = n + 1
-  end
-  return short_representation(n) .. table.concat(buffer)
-end
-
 local function boolean_representation(value)
   if value then return "\001" else return "\000" end
 end
@@ -240,11 +229,11 @@ end
 -- Public interface
 --
 
+_M.map_representation = map_representation
 _M.int_representation = int_representation
 _M.short_representation = short_representation
 _M.bytes_representation = bytes_representation
 _M.boolean_representation = boolean_representation
-_M.string_map_representation = string_map_representation
 _M.short_bytes_representation = short_bytes_representation
 _M.long_string_representation = long_string_representation
 

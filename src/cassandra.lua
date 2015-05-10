@@ -63,7 +63,7 @@ local function shuffle(t)
 end
 
 local function startup(self)
-  local body = encoding.string_map_representation({["CQL_VERSION"]=CQL_VERSION})
+  local body = encoding.map_representation({["CQL_VERSION"]=CQL_VERSION})
   local response, err = protocol.send_frame_and_get_response(self,
     constants.op_codes.STARTUP, body)
   if not response then
