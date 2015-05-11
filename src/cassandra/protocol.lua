@@ -186,10 +186,16 @@ local function query_parameters_representation(args, options)
     paging_state = encoding.bytes_representation(options.paging_state)
   end
 
+  local serial_consistency = ""
+  if options.serial_consistency and constants.consistency[options.serial_consistency] then
+    flags_repr = setbit(flags_repr, constants.query_flags.SERIAL_CONSITENCY)
+    serial_consistency = options.serial_consistency
+  end
+
   -- <query_parameters>
   return encoding.short_representation(options.consistency_level) ..
     string.char(flags_repr) .. encoding.values_representation(args) ..
-    result_page_size .. paging_state
+    result_page_size .. paging_state .. serial_consistency
 end
 
 -- Represents <query><query_parameters>

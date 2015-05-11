@@ -355,7 +355,7 @@ describe("cassandra", function()
 
     local types = require "spec.type_fixtures"
 
-    for _, type in ipairs({types[#types]}) do
+    for _, type in ipairs(types) do
       describe("Type " .. type.name, function()
 
         setup(function()
@@ -413,7 +413,7 @@ describe("cassandra", function()
 
       teardown(function()
         session:execute("DROP TYPE address")
-        session:execute("DROP TYPE address")
+        session:execute("DROP TABLE user_profiles")
       end)
 
       it("should be possible to insert and get value back", function()
@@ -546,6 +546,32 @@ describe("cassandra", function()
       end)
 
     end)
+  end)
+
+  describe("Query flags #flags", function()
+
+    setup(function()
+      session:execute [[
+        CREATE TABLE IF NOT EXISTS flags_test_table(
+          key int PRIMARY KEY,
+          value varchar
+        )
+      ]]
+      session:execute([[ INSERT INTO flags_test_table(key, value)
+                          VALUES(?,?) ]], { i, "test" })
+    end)
+
+    teardown(function()
+      session:execute("DROP TABLE flags_test_table")
+    end)
+
+    it("should support the serial_consitency flag", function()
+      -- serial_consistency only works for conditional update statements but
+      -- we are here tracking the driver's behaviour when passing the flag
+      local rows, err = session:execute("SELECT * FROM flags_test_table", nil, {serial_consistency=cassandra.consistency.ANY})
+      assert.falsy(err)
+    end)
+
   end)
 
   describe("Counters #counters", function()

@@ -12,7 +12,8 @@ math.randomseed(ngx and ngx.time() or os.time())
 local _M = {
   version="0.5-7",
   consistency=constants.consistency,
-  batch_types=constants.batch_types
+  batch_types=constants.batch_types,
+  error_codes=constants.error_codes
 }
 
 -- create functions for type annotations

@@ -67,7 +67,7 @@ return {
     SKIP_METADATA=0x02, -- not implemented
     PAGE_SIZE=0x04,
     PAGING_STATE=0x08,
-    SERIAL_CONSISTENCY=0x10, -- not implemented
+    SERIAL_CONSISTENCY=0x10,
     DEFAULT_TIMESTAMP=0x20, -- not implemented
     NAMED_VALUES=0x40 -- not implemented
   },
