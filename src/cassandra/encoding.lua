@@ -192,6 +192,18 @@ local function map_representation(map)
   return int_representation(size) .. table.concat(buffer)
 end
 
+local function udt_representation(ordered_fields)
+  local buffer = {}
+  for _, value in ipairs(ordered_fields) do
+    buffer[#buffer + 1] = _M.value_representation(value)
+  end
+  return table.concat(buffer)
+end
+
+local function tuple_representation(ordered_fields)
+  return udt_representation(ordered_fields)
+end
+
 local function identity_representation(value)
   return value
 end
@@ -216,7 +228,9 @@ local encoders = {
   [constants.types.inet]=inet_representation,
   [constants.types.list]=list_representation,
   [constants.types.map]=map_representation,
-  [constants.types.set]=set_representation
+  [constants.types.set]=set_representation,
+  [constants.types.udt]=udt_representation,
+  [constants.types.tuple]=tuple_representation
 }
 
 local function infer_type(value)
@@ -247,18 +261,6 @@ _M.string_map_representation = string_map_representation
 _M.short_bytes_representation = short_bytes_representation
 _M.long_string_representation = long_string_representation
 
-function _M.values_representation(args)
-  if not args then
-    return ""
-  end
-  local values = {}
-  values[#values + 1] = short_representation(#args)
-  for _, value in ipairs(args) do
-    values[#values + 1] = _M.value_representation(value)
-  end
-  return table.concat(values)
-end
-
 function _M.value_representation(value)
   local infered_type = infer_type(value)
   if type(value) == 'table' and value.type and value.value then
@@ -269,6 +271,18 @@ function _M.value_representation(value)
   end
   local representation = encoders[infered_type](value)
   return bytes_representation(representation)
+end
+
+function _M.values_representation(args)
+  if not args then
+    return ""
+  end
+  local values = {}
+  values[#values + 1] = short_representation(#args)
+  for _, value in ipairs(args) do
+    values[#values + 1] = _M.value_representation(value)
+  end
+  return table.concat(values)
 end
 
 return _M

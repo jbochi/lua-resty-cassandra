@@ -6,7 +6,7 @@ local constants = require("cassandra.constants")
 
 describe("cassandra", function()
 
-  before_each(function()
+  setup(function()
     session = cassandra.new()
     session:set_timeout(1000)
 
@@ -355,14 +355,14 @@ describe("cassandra", function()
 
     local types = require "spec.type_fixtures"
 
-    for _, type in ipairs(types) do
+    for _, type in ipairs({types[#types]}) do
       describe("Type " .. type.name, function()
 
         setup(function()
           session:execute([[
             CREATE TABLE type_test_table (
               key varchar PRIMARY KEY,
-              value ]] .. type.name .. [[
+              value ]]..type.name..[[
             )
           ]])
         end)
@@ -372,13 +372,13 @@ describe("cassandra", function()
         end)
 
         it("should be possible to insert and get value back", function()
-          local ok, err = session:execute([[
-            INSERT INTO type_test_table (key, value)
-            VALUES (?, ?)
+          local _, err = session:execute([[
+            INSERT INTO type_test_table (key, value) VALUES (?, ?)
           ]], {"key", type.insert_value ~= nil and type.insert_value or type.value})
           assert.falsy(err)
 
           local rows, err = session:execute("SELECT value FROM type_test_table WHERE key = 'key'")
+          assert.falsy(err)
           assert.same(1, #rows)
           if type.read_test then
             assert.truthy(type.read_test(rows[1].value))
@@ -388,6 +388,53 @@ describe("cassandra", function()
         end)
       end)
     end
+
+    describe("User Defined Type", function()
+
+      setup(function()
+        local _, err = session:execute [[
+          CREATE TYPE address (
+            street text,
+            city text,
+            zip int,
+            country text
+          )
+        ]]
+        assert.falsy(err)
+
+        local _, err = session:execute [[
+          CREATE TABLE user_profiles (
+            email text PRIMARY KEY,
+            address frozen<address>
+          )
+        ]]
+        assert.falsy(err)
+      end)
+
+      teardown(function()
+        session:execute("DROP TYPE address")
+        session:execute("DROP TYPE address")
+      end)
+
+      it("should be possible to insert and get value back", function()
+        local _, err = session:execute([[
+          INSERT INTO user_profiles(email, address) VALUES (?, ?)
+        ]], {"email@domain.com", cassandra.udt({ "montgomery street", "san francisco", 94111, nil })})
+
+        assert.falsy(err)
+
+        local rows, err = session:execute("SELECT address FROM user_profiles WHERE email = 'email@domain.com'")
+        assert.falsy(err)
+        assert.same(1, #rows)
+        local row = rows[1]
+        assert.same("montgomery street", row.address.street)
+        assert.same("san francisco", row.address.city)
+        assert.same(94111, row.address.zip)
+        assert.same("", row.address.country)
+      end)
+
+    end)
+
   end)
 
   describe("Pagination #pagination", function()

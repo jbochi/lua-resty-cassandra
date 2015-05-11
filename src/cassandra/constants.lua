@@ -64,6 +64,7 @@ return {
   },
   query_flags = {
     VALUES=0x01,
+    SKIP_METADATA=0x02, -- not implemented
     PAGE_SIZE=0x04,
     PAGING_STATE=0x08,
     SERIAL_CONSISTENCY=0x10, -- not implemented
@@ -121,6 +122,8 @@ return {
     inet=0x10,
     list=0x20,
     map=0x21,
-    set=0x22
+    set=0x22,
+    udt=0x30,
+    tuple=0x31
   }
 }

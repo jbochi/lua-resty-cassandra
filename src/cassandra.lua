@@ -11,7 +11,6 @@ math.randomseed(ngx and ngx.time() or os.time())
 
 local _M = {
   version="0.5-7",
-  protocol_version="v2",
   consistency=constants.consistency,
   batch_types=constants.batch_types
 }

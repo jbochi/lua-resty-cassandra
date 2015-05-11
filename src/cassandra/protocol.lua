@@ -86,17 +86,17 @@ end
 local function parse_metadata(buffer)
   -- Flags parsing
   local flags = decoding.read_int(buffer)
+  local columns_count = decoding.read_int(buffer)
   local global_tables_spec = hasbit(flags, constants.rows_flags.GLOBAL_TABLES_SPEC)
   local has_more_pages = hasbit(flags, constants.rows_flags.HAS_MORE_PAGES)
-  local columns_count = decoding.read_int(buffer)
 
-  -- Paging metadata
+  -- Potential paging metadata
   local paging_state
   if has_more_pages then
     paging_state = decoding.read_bytes(buffer)
   end
 
-  -- global_tables_spec metadata
+  -- Potential global_tables_spec metadata
   local global_keyspace_name, global_table_name
   if global_tables_spec then
     global_keyspace_name = decoding.read_string(buffer)
@@ -113,11 +113,18 @@ local function parse_metadata(buffer)
       tablename = decoding.read_string(buffer)
     end
     local column_name = decoding.read_string(buffer)
+    local column_type = decoding.read_option(buffer)
+
+    -- Decode UDTs and Tuples
+    if decoding.type_decoders[column_type.id] then
+      column_type = decoding.type_decoders[column_type.id](buffer, column_type, column_name)
+    end
+
     columns[#columns + 1] = {
       keyspace=ksname,
       table=tablename,
       name=column_name,
-      type=decoding.read_option(buffer)
+      type=column_type
     }
   end
 
@@ -146,11 +153,10 @@ local function parse_rows(buffer, metadata)
     __len = function() return columns_count end
   }
   for _ = 1, rows_count do
-    local row = {}
-    setmetatable(row, row_mt)
-    for j = 1, columns_count do
-      local value = decoding.read_value(buffer, columns[j].type)
-      row[columns[j].name] = value
+    local row = setmetatable({}, row_mt)
+    for i = 1, columns_count do
+      local value = decoding.read_value(buffer, columns[i].type)
+      row[columns[i].name] = value
     end
     values[#values + 1] = row
   end
@@ -305,21 +311,21 @@ function _M.parse_response(response)
   elseif kind == constants.result_kinds.SCHEMA_CHANGE then
     local change_type = decoding.read_string(buffer)
     local target = decoding.read_string(buffer)
-    local keyspace = decoding.read_string(buffer)
-    local table, user_type
+    local ksname = decoding.read_string(buffer)
+    local tablename, user_type_name
     if target == "TABLE" then
-      table = decoding.read_string(buffer)
+      tablename = decoding.read_string(buffer)
+    elseif target == "TYPE" then
+      user_type_name = decoding.read_string(buffer)
     end
-    if target == "TYPE" then
-      user_type = decoding.read_string(buffer)
-    end
+
     result = {
       type="SCHEMA_CHANGE",
       change_type=change_type,
       target=target,
-      keyspace=keyspace,
-      table=table,
-      user_type=user_type
+      keyspace=ksname,
+      table=tablename,
+      user_type=user_type_name
     }
   else
     error(string.format("Invalid result kind: %x", kind))
@@ -328,6 +334,7 @@ function _M.parse_response(response)
   if response.tracing_id then
     result.tracing_id = response.tracing_id
   end
+
   return result
 end
 
