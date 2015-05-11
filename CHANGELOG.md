@@ -69,8 +69,12 @@
 ## 0.1 - 2014-07-26
 - First release.
 
-[unreleased]: https://github.com/jbochi/lua-resty-cassandra/compare/v0.5-3...HEAD
-[0.5-3]: https://github.com/jbochi/lua-resty-cassandra/compare/v0.5-3...v0.5-2
+[unreleased]: https://github.com/jbochi/lua-resty-cassandra/compare/v0.5-7...HEAD
+[0.5-7]: https://github.com/jbochi/lua-resty-cassandra/compare/v0.5-6...v0.5-7
+[0.5-6]: https://github.com/jbochi/lua-resty-cassandra/compare/v0.5-5...v0.5-6
+[0.5-5]: https://github.com/jbochi/lua-resty-cassandra/compare/v0.5-4...v0.5-5
+[0.5-4]: https://github.com/jbochi/lua-resty-cassandra/compare/v0.5-3...v0.5-4
+[0.5-3]: https://github.com/jbochi/lua-resty-cassandra/compare/v0.5-2...v0.5-3
 [0.5-2]: https://github.com/jbochi/lua-resty-cassandra/compare/v0.5...v0.5-2
 [0.5]: https://github.com/jbochi/lua-resty-cassandra/compare/v0.4...v0.5
 [0.4]: https://github.com/jbochi/lua-resty-cassandra/compare/v0.3...v0.4
