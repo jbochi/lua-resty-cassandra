@@ -6,7 +6,7 @@ local constants = require("cassandra.constants")
 
 describe("cassandra", function()
 
-  before_each(function()
+  setup(function()
     session = cassandra.new()
     session:set_timeout(1000)
 
@@ -167,7 +167,8 @@ describe("cassandra", function()
       local stmt, err = session:prepare("SELECT native_protocol_version FROM system.local")
       assert.falsy(err)
       assert.truthy(stmt)
-      local rows = session:execute(stmt)
+      local rows, err = session:execute(stmt)
+      assert.falsy(err)
       assert.same(1, #rows)
       assert.truthy(rows[1].native_protocol_version == "2" or rows[1].native_protocol_version == "3")
     end)
@@ -176,7 +177,8 @@ describe("cassandra", function()
       local stmt, err = session:prepare("SELECT * FROM system.local WHERE key IN ?")
       assert.falsy(err)
       assert.truthy(stmt)
-      local rows = session:execute(stmt, {cassandra.list({"local", "not local"})})
+      local rows, err = session:execute(stmt, {cassandra.list({"local", "not local"})})
+      assert.falsy(err)
       assert.same(1, #rows)
       assert.truthy(rows[1].key == "local")
     end)
@@ -210,6 +212,7 @@ describe("cassandra", function()
   end)
 
   describe("Real use-case", function()
+    local table_created, err
 
     setup(function()
       table_created, err = session:execute [[
@@ -231,9 +234,6 @@ describe("cassandra", function()
     end)
 
     describe("DDL statements", function()
-      it("should be possible to create a table", function()
-        assert.same("users", table_created.table)
-      end)
 
       it("should not be possible to create a table twice", function()
         local table_created, err = session:execute [[
@@ -247,6 +247,54 @@ describe("cassandra", function()
         assert.same(constants.error_codes.ALREADY_EXISTS, err.code)
         assert.same('Cannot add already existing column family "users" to keyspace "lua_tests"', err.raw_message)
         assert.same('Cassandra returned error (Already_exists): "Cannot add already existing column family "users" to keyspace "lua_tests""', tostring(err))
+      end)
+
+      it("should parse a TABLE SCHEMA_CHANGE statement result", function()
+        assert.same({
+          change_type = "CREATED",
+          keyspace = "lua_tests",
+          table = "users",
+          target = "TABLE",
+          type = "SCHEMA_CHANGE"
+        }, table_created)
+      end)
+
+      it("should parse a TYPE SCHEMA_CHANGE statement result", function()
+        local type_created, err = session:execute [[
+          CREATE TYPE IF NOT EXISTS new_type (
+            key uuid,
+            value text
+          )
+        ]]
+        assert.falsy(err)
+        assert.same({
+          change_type = "CREATED",
+          keyspace = "lua_tests",
+          target = "TYPE",
+          type = "SCHEMA_CHANGE",
+          user_type = "new_type"
+        }, type_created)
+      end)
+
+      it("should parse a KEYSPACE SCHEMA_CHANGE statement result", function()
+        local keyspace_created, err = session:execute [[
+          CREATE KEYSPACE lua_tests_keyspace_test
+            WITH REPLICATION = { 'class' : 'SimpleStrategy', 'replication_factor' : 3 }
+        ]]
+        assert.falsy(err)
+        assert.same({
+          change_type = "CREATED",
+          keyspace = "lua_tests_keyspace_test",
+          target = "KEYSPACE",
+          type = "SCHEMA_CHANGE"
+        }, keyspace_created)
+
+        finally(function()
+          local keyspace_created, err = session:execute("DROP KEYSPACE lua_tests_keyspace_test")
+          if err then
+            error(err)
+          end
+        end)
       end)
     end)
 
@@ -314,7 +362,7 @@ describe("cassandra", function()
           session:execute([[
             CREATE TABLE type_test_table (
               key varchar PRIMARY KEY,
-              value ]] .. type.name .. [[
+              value ]]..type.name..[[
             )
           ]])
         end)
@@ -324,13 +372,13 @@ describe("cassandra", function()
         end)
 
         it("should be possible to insert and get value back", function()
-          local ok, err = session:execute([[
-            INSERT INTO type_test_table (key, value)
-            VALUES (?, ?)
+          local _, err = session:execute([[
+            INSERT INTO type_test_table (key, value) VALUES (?, ?)
           ]], {"key", type.insert_value ~= nil and type.insert_value or type.value})
           assert.falsy(err)
 
           local rows, err = session:execute("SELECT value FROM type_test_table WHERE key = 'key'")
+          assert.falsy(err)
           assert.same(1, #rows)
           if type.read_test then
             assert.truthy(type.read_test(rows[1].value))
@@ -340,6 +388,53 @@ describe("cassandra", function()
         end)
       end)
     end
+
+    describe("User Defined Type", function()
+
+      setup(function()
+        local _, err = session:execute [[
+          CREATE TYPE address (
+            street text,
+            city text,
+            zip int,
+            country text
+          )
+        ]]
+        assert.falsy(err)
+
+        local _, err = session:execute [[
+          CREATE TABLE user_profiles (
+            email text PRIMARY KEY,
+            address frozen<address>
+          )
+        ]]
+        assert.falsy(err)
+      end)
+
+      teardown(function()
+        session:execute("DROP TYPE address")
+        session:execute("DROP TABLE user_profiles")
+      end)
+
+      it("should be possible to insert and get value back", function()
+        local _, err = session:execute([[
+          INSERT INTO user_profiles(email, address) VALUES (?, ?)
+        ]], {"email@domain.com", cassandra.udt({ "montgomery street", "san francisco", 94111, nil })})
+
+        assert.falsy(err)
+
+        local rows, err = session:execute("SELECT address FROM user_profiles WHERE email = 'email@domain.com'")
+        assert.falsy(err)
+        assert.same(1, #rows)
+        local row = rows[1]
+        assert.same("montgomery street", row.address.street)
+        assert.same("san francisco", row.address.city)
+        assert.same(94111, row.address.zip)
+        assert.same("", row.address.country)
+      end)
+
+    end)
+
   end)
 
   describe("Pagination #pagination", function()
@@ -451,6 +546,32 @@ describe("cassandra", function()
       end)
 
     end)
+  end)
+
+  describe("Query flags #flags", function()
+
+    setup(function()
+      session:execute [[
+        CREATE TABLE IF NOT EXISTS flags_test_table(
+          key int PRIMARY KEY,
+          value varchar
+        )
+      ]]
+      session:execute([[ INSERT INTO flags_test_table(key, value)
+                          VALUES(?,?) ]], { i, "test" })
+    end)
+
+    teardown(function()
+      session:execute("DROP TABLE flags_test_table")
+    end)
+
+    it("should support the serial_consitency flag", function()
+      -- serial_consistency only works for conditional update statements but
+      -- we are here tracking the driver's behaviour when passing the flag
+      local rows, err = session:execute("SELECT * FROM flags_test_table", nil, {serial_consistency=cassandra.consistency.ANY})
+      assert.falsy(err)
+    end)
+
   end)
 
   describe("Counters #counters", function()

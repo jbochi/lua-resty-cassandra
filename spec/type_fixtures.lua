@@ -38,5 +38,6 @@ return {
   {name='map<text,text>', insert_value=cassandra.map({k1='v1', k2='v2'}), read_value={k1='v1', k2='v2'}},
   {name='map<text,int>', insert_value=cassandra.map({k1=3, k2=4}), read_value={k1=3, k2=4}},
   {name='map<text,text>', insert_value=cassandra.map({}), read_value=nil},
-  {name='set<text>', insert_value=cassandra.set({'abc', 'def'}), read_value={'abc', 'def'}}
+  {name='set<text>', insert_value=cassandra.set({'abc', 'def'}), read_value={'abc', 'def'}},
+  {name='tuple<int, text, float>', insert_value=cassandra.tuple({1, 'foo', cassandra.float(2.1)}), read_test=function(value) return value[1] == 1 and value[2] == 'foo' and math.abs(value[3] - 2.1) < 0.0000001 end}
 }

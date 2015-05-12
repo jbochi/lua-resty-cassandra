@@ -17,9 +17,11 @@ error_mt = {
 }
 
 local function cassandra_error(message, code, raw_message)
-  local err = {message=message, code=code, raw_message=raw_message}
-  setmetatable(err, error_mt)
-  return err
+  return setmetatable({
+    message=message,
+    code=code,
+    raw_message=raw_message
+  }, error_mt)
 end
 
 local function read_error(buffer)
@@ -34,14 +36,14 @@ local function read_error(buffer)
 end
 
 local function read_frame(self)
-  local header, err = self.sock:receive(8)
+  local header, err = self.sock:receive(9)
   if not header then
     return nil, string.format("Failed to read frame header from %s: %s", self.host, err)
   end
   local header_buffer = decoding.create_buffer(header)
   local version = decoding.read_raw_byte(header_buffer)
   local flags = decoding.read_raw_byte(header_buffer)
-  local stream = decoding.read_raw_byte(header_buffer)
+  local stream = decoding.read_short(header_buffer)
   local op_code = decoding.read_raw_byte(header_buffer)
   local length = decoding.read_int(header_buffer)
   local body, tracing_id
@@ -57,7 +59,7 @@ local function read_frame(self)
     error("Invalid response version")
   end
   local body_buffer = decoding.create_buffer(body)
-  if flags == 0x02 then -- tracing
+  if flags == constants.flags.TRACING then -- tracing
     tracing_id = decoding.read_uuid(string.sub(body, 1, 16))
     body_buffer.pos = 17
   end
@@ -84,17 +86,17 @@ end
 local function parse_metadata(buffer)
   -- Flags parsing
   local flags = decoding.read_int(buffer)
+  local columns_count = decoding.read_int(buffer)
   local global_tables_spec = hasbit(flags, constants.rows_flags.GLOBAL_TABLES_SPEC)
   local has_more_pages = hasbit(flags, constants.rows_flags.HAS_MORE_PAGES)
-  local columns_count = decoding.read_int(buffer)
 
-  -- Paging metadata
+  -- Potential paging metadata
   local paging_state
   if has_more_pages then
     paging_state = decoding.read_bytes(buffer)
   end
 
-  -- global_tables_spec metadata
+  -- Potential global_tables_spec metadata
   local global_keyspace_name, global_table_name
   if global_tables_spec then
     global_keyspace_name = decoding.read_string(buffer)
@@ -111,11 +113,18 @@ local function parse_metadata(buffer)
       tablename = decoding.read_string(buffer)
     end
     local column_name = decoding.read_string(buffer)
+    local column_type = decoding.read_option(buffer)
+
+    -- Decode UDTs and Tuples
+    if decoding.type_decoders[column_type.id] then
+      column_type = decoding.type_decoders[column_type.id](buffer, column_type, column_name)
+    end
+
     columns[#columns + 1] = {
       keyspace=ksname,
       table=tablename,
       name=column_name,
-      type=decoding.read_option(buffer)
+      type=column_type
     }
   end
 
@@ -134,21 +143,20 @@ local function parse_rows(buffer, metadata)
   local values = {}
   local row_mt = {
     __index = function(t, i)
-    -- allows field access by position/index, not column name only
-    local column = columns[i]
-    if column then
-      return t[column.name]
-    end
-    return nil
+      -- allows field access by position/index, not column name only
+      local column = columns[i]
+      if column then
+        return t[column.name]
+      end
+      return nil
     end,
     __len = function() return columns_count end
   }
   for _ = 1, rows_count do
-    local row = {}
-    setmetatable(row, row_mt)
-    for j = 1, columns_count do
-      local value = decoding.read_value(buffer, columns[j].type)
-      row[columns[j].name] = value
+    local row = setmetatable({}, row_mt)
+    for i = 1, columns_count do
+      local value = decoding.read_value(buffer, columns[i].type)
+      row[columns[i].name] = value
     end
     values[#values + 1] = row
   end
@@ -156,14 +164,88 @@ local function parse_rows(buffer, metadata)
   return values
 end
 
-local function query_representation(query)
-  if type(query) == "string" then
-    return encoding.long_string_representation(query)
-  elseif query.is_batch_statement then
-    return query:representation()
-  else
-    return encoding.short_bytes_representation(query.id)
+-- Represent a <query_parameters>
+-- <consistency><flags>[<n><value_1>...<value_n>][<result_page_size>][<paging_state>][<serial_consistency>]
+local function query_parameters_representation(args, options)
+  -- <flags>
+  local flags_repr = 0
+
+  if args then
+    flags_repr = setbit(flags_repr, constants.query_flags.VALUES)
   end
+
+  local result_page_size = ""
+  if options.page_size > 0 then
+    flags_repr = setbit(flags_repr, constants.query_flags.PAGE_SIZE)
+    result_page_size = encoding.int_representation(options.page_size)
+  end
+
+  local paging_state = ""
+  if options.paging_state then
+    flags_repr = setbit(flags_repr, constants.query_flags.PAGING_STATE)
+    paging_state = encoding.bytes_representation(options.paging_state)
+  end
+
+  local serial_consistency = ""
+  if options.serial_consistency and constants.consistency[options.serial_consistency] then
+    flags_repr = setbit(flags_repr, constants.query_flags.SERIAL_CONSITENCY)
+    serial_consistency = options.serial_consistency
+  end
+
+  -- <query_parameters>
+  return encoding.short_representation(options.consistency_level) ..
+    string.char(flags_repr) .. encoding.values_representation(args) ..
+    result_page_size .. paging_state .. serial_consistency
+end
+
+-- Represents <query><query_parameters>
+local function query_representation(query, args, options)
+  return encoding.long_string_representation(query) .. query_parameters_representation(args, options)
+end
+
+-- Represents <id><query_parameters>
+local function execute_representation(id, args, options)
+  return encoding.short_bytes_representation(id) .. query_parameters_representation(args, options)
+end
+
+-- Represents <type><n><query_1>...<query_n><consistency><flags>[<serial_consistency>][<timestamp>]
+-- where <query_n> must be
+--   <kind><string_or_id><n><value_1>...<value_n>
+local function batch_representation(batch, options)
+  local queries = batch.queries
+  local b = {}
+  -- <type>
+  b[#b + 1] = string.char(batch.type)
+  -- <n> (number of queries)
+  b[#b + 1] = encoding.short_representation(#queries)
+  -- <query_n> (operations)
+  for _, query in ipairs(queries) do
+    local kind
+    local string_or_id
+    if type(query.query) == "string" then
+      kind = encoding.boolean_representation(false)
+      string_or_id = encoding.long_string_representation(query.query)
+    else
+      kind = encoding.boolean_representation(true)
+      string_or_id = encoding.short_bytes_representation(query.query.id)
+    end
+
+    -- The behaviour is sligthly different than from <query_parameters>
+    -- for <query_parameters>:
+    --   [<n><value_1>...<value_n>] (n cannot be 0), otherwise is being mixed up with page_size
+    -- for batch <query_n>:
+    --   <kind><string_or_id><n><value_1>...<value_n> (n can be 0, but is required)
+    if query.args then
+      b[#b + 1] = kind .. string_or_id .. encoding.values_representation(query.args)
+    else
+      b[#b + 1] = kind .. string_or_id .. encoding.short_representation(0)
+    end
+  end
+
+  local flags = string.char(0)
+
+  -- <type><n><query_1>...<query_n><consistency><flags>
+  return table.concat(b) .. encoding.short_representation(options.consistency_level) .. flags
 end
 
 --
@@ -171,6 +253,23 @@ end
 --
 
 local _M = {}
+
+function _M.op_code_and_frame_body(op, args, options)
+  local op_code, representation
+  -- Determine if op is a query, statement, or batch
+  if type(op) == "string" then
+    op_code = constants.op_codes.QUERY
+    representation = query_representation(op, args, options)
+  elseif op.is_batch_statement then
+    op_code = constants.op_codes.BATCH
+    representation = batch_representation(op, options)
+  else
+    op_code = constants.op_codes.EXECUTE
+    representation = execute_representation(op.id, args, options)
+  end
+
+  return op_code, representation
+end
 
 function _M.parse_prepared_response(response)
   local buffer = response.buffer
@@ -216,11 +315,23 @@ function _M.parse_response(response)
       keyspace=decoding.read_string(buffer)
     }
   elseif kind == constants.result_kinds.SCHEMA_CHANGE then
+    local change_type = decoding.read_string(buffer)
+    local target = decoding.read_string(buffer)
+    local ksname = decoding.read_string(buffer)
+    local tablename, user_type_name
+    if target == "TABLE" then
+      tablename = decoding.read_string(buffer)
+    elseif target == "TYPE" then
+      user_type_name = decoding.read_string(buffer)
+    end
+
     result = {
       type="SCHEMA_CHANGE",
-      change=decoding.read_string(buffer),
-      keyspace=decoding.read_string(buffer),
-      table=decoding.read_string(buffer)
+      change_type=change_type,
+      target=target,
+      keyspace=ksname,
+      table=tablename,
+      user_type=user_type_name
     }
   else
     error(string.format("Invalid result kind: %x", kind))
@@ -229,55 +340,14 @@ function _M.parse_response(response)
   if response.tracing_id then
     result.tracing_id = response.tracing_id
   end
+
   return result
-end
-
-function _M.query_op_code(query)
-  if type(query) == "string" then
-    return constants.op_codes.QUERY
-  elseif query.is_batch_statement then
-    return constants.op_codes.BATCH
-  else
-    return constants.op_codes.EXECUTE
-  end
-end
-
-function _M.frame_body(query, args, options)
-  -- Determine if query is a query, statement, or batch
-  local query_repr = query_representation(query)
-
-  -- Flags of the <query_parameters>
-  local flags_repr = 0
-
-  if args then
-    flags_repr = setbit(flags_repr, constants.query_flags.VALUES)
-  end
-
-  local result_page_size = ""
-  if options.page_size > 0 then
-    flags_repr = setbit(flags_repr, constants.query_flags.PAGE_SIZE)
-    result_page_size = encoding.int_representation(options.page_size)
-  end
-
-  local paging_state = ""
-  if options.paging_state then
-    flags_repr = setbit(flags_repr, constants.query_flags.PAGING_STATE)
-    paging_state = encoding.bytes_representation(options.paging_state)
-  end
-
-  -- <query_parameters>: <consistency><flags>[<n><value_i><...>][<result_page_size>][<paging_state>]
-  local query_parameters = encoding.short_representation(options.consistency_level) ..
-    string.char(flags_repr) .. encoding.values_representation(args) ..
-    result_page_size .. paging_state
-
-  -- frame body: <query><query_parameters>
-  return query_repr .. query_parameters
 end
 
 function _M.send_frame_and_get_response(self, op_code, body, tracing)
   local version = string.char(constants.version_codes.REQUEST)
-  local flags = tracing and '\002' or '\000'
-  local stream_id = '\000'
+  local flags = tracing and constants.flags.TRACING or '\000'
+  local stream_id = encoding.short_representation(0)
   local length = encoding.int_representation(#body)
   local frame = version .. flags .. stream_id .. string.char(op_code) .. length .. body
 

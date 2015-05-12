@@ -170,9 +170,9 @@ local function inet_representation(value)
 end
 
 local function list_representation(elements)
-  local buffer = {short_representation(#elements)}
+  local buffer = {int_representation(#elements)}
   for _, value in ipairs(elements) do
-    buffer[#buffer + 1] = _M.value_representation(value, true)
+    buffer[#buffer + 1] = _M.value_representation(value)
   end
   return table.concat(buffer)
 end
@@ -185,12 +185,23 @@ local function map_representation(map)
   local buffer = {}
   local size = 0
   for key, value in pairs(map) do
-    buffer[#buffer + 1] = _M.value_representation(key, true)
-    buffer[#buffer + 1] = _M.value_representation(value, true)
+    buffer[#buffer + 1] = _M.value_representation(key)
+    buffer[#buffer + 1] = _M.value_representation(value)
     size = size + 1
   end
-  table.insert(buffer, 1, short_representation(size))
+  return int_representation(size) .. table.concat(buffer)
+end
+
+local function udt_representation(ordered_fields)
+  local buffer = {}
+  for _, value in ipairs(ordered_fields) do
+    buffer[#buffer + 1] = _M.value_representation(value)
+  end
   return table.concat(buffer)
+end
+
+local function tuple_representation(ordered_fields)
+  return udt_representation(ordered_fields)
 end
 
 local function identity_representation(value)
@@ -217,7 +228,9 @@ local encoders = {
   [constants.types.inet]=inet_representation,
   [constants.types.list]=list_representation,
   [constants.types.map]=map_representation,
-  [constants.types.set]=set_representation
+  [constants.types.set]=set_representation,
+  [constants.types.udt]=udt_representation,
+  [constants.types.tuple]=tuple_representation
 }
 
 local function infer_type(value)
@@ -243,26 +256,20 @@ end
 _M.int_representation = int_representation
 _M.short_representation = short_representation
 _M.bytes_representation = bytes_representation
+_M.boolean_representation = boolean_representation
 _M.string_map_representation = string_map_representation
 _M.short_bytes_representation = short_bytes_representation
 _M.long_string_representation = long_string_representation
 
-function _M.value_representation(value, short)
+function _M.value_representation(value)
   local infered_type = infer_type(value)
   if type(value) == 'table' and value.type and value.value then
     value = value.value
   end
   if infered_type == _M.null then
-    if short then
-      return short_representation(-1)
-    else
-      return int_representation(-1)
-    end
+    return int_representation(-1)
   end
   local representation = encoders[infered_type](value)
-  if short then
-    return short_bytes_representation(representation)
-  end
   return bytes_representation(representation)
 end
 
@@ -276,40 +283,6 @@ function _M.values_representation(args)
     values[#values + 1] = _M.value_representation(value)
   end
   return table.concat(values)
-end
-
-function _M.batch_representation(queries, batch_type)
-  local b = {}
-  -- <type>
-  b[#b + 1] = string.char(batch_type)
-  -- <n> (number of queries)
-  b[#b + 1] = short_representation(#queries)
-  -- <query_i> (operations)
-  for _, query in ipairs(queries) do
-    local kind
-    local string_or_id
-    if type(query.query) == "string" then
-      kind = boolean_representation(false)
-      string_or_id = long_string_representation(query.query)
-    else
-      kind = boolean_representation(true)
-      string_or_id = short_bytes_representation(query.query.id)
-    end
-
-    -- The behaviour is sligthly different than from <query_parameters>
-    -- for <query_parameters>:
-    --   [<n><value_1>...<value_n>] (n cannot be 0), otherwise is being mixed up with page_size
-    -- for batch <query_i>:
-    --   <kind><string_or_id><n><value_1>...<value_n> (n can be 0, but is required)
-    if query.args then
-      b[#b + 1] = kind .. string_or_id .. _M.values_representation(query.args)
-    else
-      b[#b + 1] = kind .. string_or_id .. short_representation(0)
-    end
-  end
-
-  -- <type><n><query_1>...<query_n>
-  return table.concat(b)
 end
 
 return _M
