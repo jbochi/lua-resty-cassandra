@@ -169,10 +169,8 @@ local function inet_representation(value)
     end
   else
     -- ipv4
-    if #digits == 0 then
-      for d in string.gmatch(value, "(%d+)") do
-        table.insert(digits, string.char(d))
-      end
+    for d in string.gmatch(value, "(%d+)") do
+      table.insert(digits, string.char(d))
     end
   end
   return table.concat(digits)
