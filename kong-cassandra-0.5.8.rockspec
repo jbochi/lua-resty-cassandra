@@ -1,4 +1,4 @@
-package = "cassandra"
+package = "kong-cassandra"
 version = "0.5-8"
 source = {
    url = "git://github.com/mashape/lua-resty-cassandra",
