@@ -1,8 +1,8 @@
 package = "cassandra"
-version = "0.5-7"
+version = "0.5-8"
 source = {
-   url = "git://github.com/jbochi/lua-resty-cassandra",
-   tag = "v0.5-7"
+   url = "git://github.com/mashape/lua-resty-cassandra",
+   tag = "v0.5-8"
 }
 description = {
    summary = "Pure Lua Cassandra - CQL client",
@@ -10,7 +10,7 @@ description = {
       Pure Cassandra driver for Lua supporting CQL 3,
       using binary protocol v2.
    ]],
-   homepage = "https://github.com/jbochi/lua-resty-cassandra",
+   homepage = "https://github.com/mashape/lua-resty-cassandra",
    license = "MIT/X11"
 }
 dependencies = {
