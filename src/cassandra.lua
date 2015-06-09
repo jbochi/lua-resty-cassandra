@@ -10,7 +10,7 @@ local CQL_VERSION = "3.0.0"
 math.randomseed(ngx and ngx.time() or os.time())
 
 local _M = {
-  version="0.5-7",
+  version="0.5-8",
   consistency=constants.consistency,
   batch_types=constants.batch_types
 }
@@ -259,7 +259,7 @@ function _M:execute(query, args, options)
 end
 
 function _M:set_keyspace(keyspace_name)
-  return self:execute("USE " .. keyspace_name)
+  return self:execute(string.format("USE \"%s\"", keyspace_name))
 end
 
 function _M:get_trace(result)
