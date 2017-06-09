@@ -1,3 +1,5 @@
+This repo is *not* being actively maintained. I highly recommend that you try this spin off project: https://github.com/thibaultcha/lua-cassandra
+
 # lua-resty-cassandra
 
 [![Build Status][badge-travis-image]][badge-travis-url]
