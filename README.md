@@ -1,4 +1,4 @@
-This repo is *not* being actively maintained. I highly recommend that you try this spin off project: https://github.com/thibaultcha/lua-cassandra
+This repo is **not** being actively maintained. I highly recommend that you try [lua-cassandra](https://github.com/thibaultcha/lua-cassandra)
 
 # lua-resty-cassandra
 
