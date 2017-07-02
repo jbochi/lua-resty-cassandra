@@ -259,7 +259,7 @@ function _M:execute(query, args, options)
 end
 
 function _M:set_keyspace(keyspace_name)
-  return self:execute("USE " .. keyspace_name)
+  return self:execute(string.format("USE \"%s\"", keyspace_name))
 end
 
 function _M:get_trace(result)
